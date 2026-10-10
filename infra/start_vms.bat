@@ -1,0 +1,1 @@
+powershell -NoExit -ExecutionPolicy Bypass -File C:\Users\roger\OneDrive\lab\lab.ps1

@@ -1,0 +1,55 @@
+# Laboratório DBA: PostgreSQL, MySQL e Ansible
+# 3 nós de banco (db1-db3) + 1 nó de controle Ansible (ctl)
+# Uso: na pasta deste arquivo, rode "vagrant up"
+
+BOX = "bento/rockylinux-9"
+
+NODES = [
+  { name: "db1", ip: "192.168.56.11", mem: 2048, cpus: 2 },
+  { name: "db2", ip: "192.168.56.12", mem: 2048, cpus: 2 },
+  { name: "db3", ip: "192.168.56.13", mem: 2048, cpus: 2 },
+  { name: "ctl", ip: "192.168.56.10", mem: 1536, cpus: 1 },
+]
+
+# /etc/hosts igual em todas as VMs, para se acharem pelo nome
+HOSTS = NODES.map { |n| "#{n[:ip]} #{n[:name]}" }.join("\n")
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+  config.vm.box_check_update = false
+
+  NODES.each do |node|
+    config.vm.define node[:name] do |vm|
+      vm.vm.hostname = node[:name]
+      vm.vm.network "private_network", ip: node[:ip]
+
+      vm.vm.provider "virtualbox" do |vb|
+        vb.name   = "lab-#{node[:name]}"
+        vb.memory = node[:mem]
+        vb.cpus   = node[:cpus]
+        vb.linked_clone = true # economiza disco
+      end
+
+      # Base comum: hosts, fuso horário, utilitários
+      vm.vm.provision "shell", inline: <<-SHELL
+        sed -i '/192.168.56./d' /etc/hosts
+        echo "#{HOSTS}" >> /etc/hosts
+        timedatectl set-timezone Europe/Lisbon
+        dnf -y install python3 vim-enhanced tar bash-completion chrony
+        systemctl enable --now chronyd
+        # Permite login por senha entre as VMs (o usuário vagrant tem senha "vagrant")
+        sed -i 's/^#\\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+        rm -f /etc/ssh/sshd_config.d/*-vagrant*.conf 2>/dev/null || true
+        systemctl restart sshd
+      SHELL
+
+      # Só no nó de controle: Ansible e Git
+      if node[:name] == "ctl"
+        vm.vm.provision "shell", inline: <<-SHELL
+          dnf -y install epel-release
+          dnf -y install ansible-core git
+        SHELL
+      end
+    end
+  end
+end
