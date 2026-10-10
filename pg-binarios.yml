@@ -1,0 +1,30 @@
+---
+- name: Binarios do PostgreSQL 18 nas replicas
+  hosts: replicas
+  become: true
+
+  tasks:
+    - name: Instalar repositorio oficial PGDG
+      ansible.builtin.dnf:
+        name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+        state: present
+        disable_gpg_check: true
+
+    - name: Desabilitar o modulo postgresql do Rocky
+      ansible.builtin.command: dnf -qy module disable postgresql
+      register: modulo
+      changed_when: "'Disabling' in modulo.stdout"
+
+    - name: Instalar servidor e contrib
+      ansible.builtin.dnf:
+        name:
+          - postgresql18-server
+          - postgresql18-contrib
+        state: present
+
+    - name: Liberar a porta 5432 no firewall
+      ansible.posix.firewalld:
+        service: postgresql
+        permanent: true
+        immediate: true
+        state: enabled
