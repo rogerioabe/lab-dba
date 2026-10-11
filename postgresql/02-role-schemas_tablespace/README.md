@@ -25,6 +25,17 @@ CONNECT on database;
 USAGE on schema;
 SELECT in the tabela.
 
+Usefull commands
+----------------
+\d table_name 	describe
+\dt		tables
+\dn		namespaces (schemas)
+\du		users (roles)
+\db		tablespaces
+\dp		privileges
+\l		list databases (o único sem d)
+
+
 Tablespaces
 ============
 In PostgreSQL, a tablespace is only a directory. It doesn't have datafile, quotas and autoextend. It's usefull to split data in other disks.
