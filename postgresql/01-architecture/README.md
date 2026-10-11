@@ -1,37 +1,40 @@
--- architeture concepts
-Shared:
-======
-shared_buffers: cache de páginas de dados de 8 KB.
-wal_buffers: área do WAL antes de ir para o disco.
-Tabela de locks, estado das transações e estruturas de controle.
+#########################################
+## Architeture Concepts
+#########################################
+Shared memory:
+=============
+shared_buffers: buffer cache for 8 KB data pages.
+wal_buffers: WAL staging area before it is flushed to disk.
+Lock table, transaction state and other control structures.
 
-Por backend:
-===========
-work_mem: memória para cada operação de sort ou hash. Uma query complexa pode usar várias vezes o work_mem, multiplicado pelo número de conexões. Errar esse dimensionamento é causa clássica de OOM.
-maintenance_work_mem: usado por VACUUM, CREATE INDEX e afins.
-temp_buffers: para tabelas temporárias.
+Per-backend memory:
+==================
+work_mem: memory allocated per sort or hash operation. A complex query can use several multiples of work_mem, and that multiplies again by the number of connections. Getting this sizing wrong is a classic cause of OOM.
+maintenance_work_mem: used by VACUUM, CREATE INDEX and similar maintenance operations.
+temp_buffers: used for temporary tables.
 
-Processo			O que faz									Oracle
-checkpointer			Grava todas as páginas sujas a cada checkpoint e marca o ponto de recuperação	CKPT + DBWn em checkpoint
-background writer		Grava páginas sujas aos poucos, para os backends acharem buffers livres		DBWn
-walwriter			Descarrega os WAL buffers para o disco						LGWR
-autovacuum launcher + workers	VACUUM e ANALYZE automáticos							— (e o job de estatísticas)
-archiver			Copia os segmentos de WAL cheios (com archive_mode=on)				ARCn
-walsender / walreceiver		Enviam e recebem WAL na replicação						Processos de transporte do Data Guard
-io workers (PG 18)		I/O assíncrono de leitura							—
-logger				Grava o log de texto (logging_collector)					alert log
+Process				What it does									Oracle equivalent
+checkpointer			Flushes all dirty pages at each checkpoint and sets the recovery start point	CKPT + DBWn at checkpoint
+background writer		Writes dirty pages out incrementally so backends can find clean buffers		DBWn
+walwriter			Flushes WAL buffers to disk							LGWR
+autovacuum launcher + workers	Automatic VACUUM and ANALYZE							— (plus the automatic stats-gathering job)
+archiver			Archives completed WAL segments (requires archive_mode=on)			ARCn
+walsender / walreceiver		Ship and receive WAL for streaming replication					Data Guard redo transport processes
+io workers (PG 18)		Asynchronous read I/O								—
+logger				Writes the text server log (logging_collector)					alert log
 
-Armazenamento físico
+Physical storage
+================
+The data directory is $PGDATA (in this lab, /var/lib/pgsql/18/data). Key contents:
 
-O diretório de dados é o $PGDATA (no seu laboratório, /var/lib/pgsql/18/data). Os itens principais:
-Item			Conteúdo							Oracle
-base/			Uma subpasta por banco, com o nome igual ao OID do banco	datafiles
-global/			Catálogos do cluster inteiro, como pg_database			SYSTEM tablespace (parte)
-pg_wal/			Segmentos de WAL						online redo logs
-pg_xact/		Status de commit de cada transação				— (no Oracle fica no undo header)
-pg_tblspc/		Links simbólicos para tablespaces				—
-postgresql.auto.conf	O que você grava com ALTER SYSTEM				spfile
-postmaster.pid		Lock file com PID, porta e segmento de memória; não existe com o servidor parado	—
+Item			Contents											Oracle equivalent
+base/			One subdirectory per database, named after the database OID					datafiles
+global/			Cluster-wide catalogs, such as pg_database							SYSTEM tablespace (partially)
+pg_wal/			WAL segments	online redo logs
+pg_xact/		Commit status of each transaction (formerly pg_clog)						— (in Oracle this lives in the undo segment header)
+pg_tblspc/		Symbolic links to tablespaces									—
+postgresql.auto.conf	Settings written by ALTER SYSTEM								spfile
+postmaster.pid		Lock file holding the PID, port and shared memory segment ID; absent when the server is down	—
 
 -- check which parameter demands restart, reload or is online to persist the change
 lab=> SELECT name, context FROM pg_settings
