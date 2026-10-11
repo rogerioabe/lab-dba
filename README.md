@@ -12,3 +12,16 @@
   - é controlado por tabela
   - update e deletes geram uma nova linha na tabela, alterado seu ctid. O commando VACCUM apaga as linhas mortas
 ## Week 3 - MVCC, VACUUM, Autovacuum and bloat
+  - Investigating fragmentation by using the following queries:
+    SELECT * FROM pgstattuple('bloat');
+    SELECT pg_size_pretty(table_len)        AS tamanho_total,
+       tuple_count                      AS linhas_vivas,
+       pg_size_pretty(tuple_len)        AS espaco_vivas,
+       round(tuple_percent::numeric, 1) AS pct_vivas,
+       dead_tuple_count                 AS linhas_mortas,
+       round(dead_tuple_percent::numeric, 1) AS pct_mortas,
+       pg_size_pretty(free_space)       AS espaco_livre,
+       round(free_percent::numeric, 1)  AS pct_livre
+    FROM pgstattuple('bloat');
+    SELECT * FROM pgstattuple_approx('bloat');
+    SELECT avg_leaf_density, leaf_fragmentation FROM pgstatindex('bloat_pkey');
