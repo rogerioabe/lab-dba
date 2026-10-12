@@ -90,6 +90,11 @@ tps = 204.981116 (without initial connection time)
 sudo -iu postgres psql -h db1
 sudo -iu postgres psql -c "ALTER SYSTEM SET log_line_prefix = '%m [%p] %u@%d ';"
 sudo -iu postgres psql -c "SELECT pg_reload_conf();"
+
+-- checking typos in config file
+SELECT sourceline, name, setting, applied, error FROM pg_file_settings WHERE error IS NOT NULL OR NOT applied;
+
+
 /usr/pgsql-18/bin/pgbench -h localhost -U dba -c 8 -j 2 -T 60 bench
 sudo su -
 sudo tail -30 /var/lib/pgsql/18/data/log/postgresql-*.log | grep -i checkpoint[root@db1 ~]# tail -30 /var/lib/pgsql/18/data/log/postgresql-Mon.log | grep -i checkpoint
