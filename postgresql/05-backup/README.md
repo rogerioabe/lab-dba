@@ -48,3 +48,39 @@ archive_command		command that copies %p (file path) to the destination as %f (fi
 A golden rule for archive_command: it must never overwrite an existing file, and it must return a non-zero exit code if the copy fails. On failure, PostgreSQL retries and does not recycle that WAL segment. That is why the command we will use starts with test ! -f.
 
 New since PG 17: pg_basebackup supports incremental backups, similar to RMAN level 0 and level 1, and pg_combinebackup merges them into a full backup. Incremental backups require summarize_wal = on. This is covered in later weeks, but it’s worth knowing it exists.
+
+
+-- usefull option guide
+pg_dump e pg_restore
+====================
+Opção	Significado			Mnemônico
+-Fc	formato custom			o padrão para a maioria dos casos
+-Fd	formato directory		o único que aceita -j no dump
+-j N	paralelismo			jobs
+-C	inclui CREATE DATABASE		C maiúsculo = Create
+-c	inclui DROP antes dos CREATE	c minúsculo = clean
+-a	só dados			data-only
+-s	só estrutura			schema-only
+-n	filtra schema			namespace (o mesmo n do \dn)
+-t	filtra tabela			table
+pg_restore -l	lista o conteúdo do dump	list
+
+pg_basebackup
+=============
+Opção			Significado				Mnemônico
+-D			diretório de destino			Destination
+-Ft / -Fp		tar / plain				igual ao pg_dump
+-z			compactar				gzip
+-P			mostrar o progresso			Progress
+-X stream		incluir o WAL gerado durante o backup	eXtra WAL
+-c fast			checkpoint imediato			checkpoint
+-T old=new		remapear tablespace (só no -Fp)		Tablespace
+
+As views pg_stat_* de WAL e backup
+==================================
+View			Monitora						Lado
+pg_stat_archiver	arquivamento de WAL (failed_count)			primário
+pg_stat_wal_receiver	recebimento de WAL pela réplica				réplica (semana 7)
+pg_stat_checkpointer	checkpoints						qualquer
+pg_stat_wal		volume de WAL gerado					qualquer
+
