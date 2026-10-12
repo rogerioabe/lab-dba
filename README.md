@@ -23,3 +23,8 @@
     FROM pgstattuple('bloat');
     SELECT * FROM pgstattuple_approx('bloat');
     SELECT avg_leaf_density, leaf_fragmentation FROM pgstatindex('bloat_pkey');
+## Week 4 - Configuration and parameters
+  - main memory parameters
+  - pg_settings view 
+  - create a bench environment for testing and measuring TPS
+  - tuning memory parameters
