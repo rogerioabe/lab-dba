@@ -28,3 +28,10 @@
   - pg_settings view 
   - create a bench environment for testing and measuring TPS
   - tuning memory parameters
+## Week 5 - Backup and Restore
+  - Backup tools: pg_dump, pg_dumpall and pg_basebackup
+  - Restore tools: pg_restore
+  - Restore files: recovery_signal 
+  - restore_command for wal files
+  - performing restore using dump
+  - performing restore using physical backup
