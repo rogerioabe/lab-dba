@@ -35,3 +35,9 @@
   - restore_command for wal files
   - performing restore using dump
   - performing restore using physical backup
+## Week 6 - Restore PITR 
+  - main parameters
+  - pgBackRest tool
+  - stanza (catalog)
+  - type of backup (full, diff and inc)
+  - labs
