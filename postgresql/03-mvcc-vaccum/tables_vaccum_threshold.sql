@@ -3,13 +3,19 @@ SELECT
     c.relname,
     c.reltuples::bigint AS estimated_rows,
     s.n_dead_tup,
-	trunc((n_dead_tup / c.reltuples) * 100) AS percent_dead_tup,
-    trunc(current_setting('autovacuum_vacuum_threshold')::numeric
-      + (current_setting('autovacuum_vacuum_scale_factor')::numeric
-        * c.reltuples::numeric)) AS estimated_vacuum_trigger
+    trunc(
+        100.0 * s.n_dead_tup::numeric
+        / NULLIF(c.reltuples::numeric, 0)
+    ) AS percent_dead_tup,
+    trunc(
+        current_setting('autovacuum_vacuum_threshold')::numeric
+        + current_setting('autovacuum_vacuum_scale_factor')::numeric
+          * c.reltuples::numeric
+    ) AS estimated_vacuum_trigger
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
 WHERE c.relkind = 'r'
-AND  c.reltuples > 0 
+  AND c.reltuples > 0
 ORDER BY estimated_rows DESC;
+
