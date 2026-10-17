@@ -1430,6 +1430,8 @@ Success: cluster management is resumed
 +--------+---------------+--------------+-----------+----+-------------+-----+------------+-----+
 
 
-
+-- seeting API REST - router
+for n in 11 12 13; do echo -n "192.168.56.$n /primary: "; curl -s -o /dev/null -w "%{http_code}\n" http://192.168.56.$n:8008/primary; done
+-- Só o líder responde 200; os outros, 503. É isso que um HAProxy usa para mandar as conexões de escrita ao nó certo.
 
 
