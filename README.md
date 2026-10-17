@@ -41,3 +41,15 @@
   - stanza (catalog)
   - type of backup (full, diff and inc)
   - labs
+## Wekk 7 - Physical Replication (Streaming), Standby and Failover
+  - Concept
+  - Slots
+  - Walsender and Walreceiver
+  - Primary and Replica
+  - Mains views: pg_stat_replication, pg_replication_slots and pg_stat_wal_receiver
+  - pg_is_in_recovery() 
+  - creating replica using pg_basebackup -R and pgbackrest --stanza=... --type=standby restore
+  - failover and switchover using SELECT pg_promote();    
+  - /var/lib/pgsql/18/data/standby.signal for standby
+  - parameters primary_conninfo and primary_slot_name on standby
+  - labs 
