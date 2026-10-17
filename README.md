@@ -53,3 +53,10 @@
   - /var/lib/pgsql/18/data/standby.signal for standby
   - parameters primary_conninfo and primary_slot_name on standby
   - labs 
+## Week 8 - Logical Replication and Patroni 
+  - Logical replica Architecture
+  - Subscrptions 
+  - Replications rules (DDL, sequence, large objects and mview not replicated) 
+  - Patroni Architecture 
+  - Patroni Instalation and Configuration
+  - Patroni Failover and Switchover

@@ -1,0 +1,12 @@
+-- change NOME to node name and IP to local ip 
+sudo tee /etc/etcd/etcd.conf <<'EOF'
+ETCD_NAME="NOME"
+ETCD_DATA_DIR="/var/lib/etcd"
+ETCD_LISTEN_PEER_URLS="http://IP:2380"
+ETCD_LISTEN_CLIENT_URLS="http://IP:2379,http://127.0.0.1:2379"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://IP:2380"
+ETCD_ADVERTISE_CLIENT_URLS="http://IP:2379"
+ETCD_INITIAL_CLUSTER="db1=http://192.168.56.11:2380,db2=http://192.168.56.12:2380,db3=http://192.168.56.13:2380"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="lab-etcd"
+EOF
