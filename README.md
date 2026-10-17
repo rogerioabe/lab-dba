@@ -41,7 +41,7 @@
   - stanza (catalog)
   - type of backup (full, diff and inc)
   - labs
-## Wekk 7 - Physical Replication (Streaming), Standby and Failover
+## Week 7 - Physical Replication (Streaming), Standby and Failover
   - Concept
   - Slots
   - Walsender and Walreceiver
