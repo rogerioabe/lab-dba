@@ -1,4 +1,3 @@
-cat > ~/lab-dba/ansible/README.md <<'EOF'
 # Ansible — : `common` and `etcd` roles
 
 Lab automation with Ansible: the OS baseline and the etcd cluster on the
@@ -36,7 +35,7 @@ ansible/
 6. The roles run tasks, templates and handlers on each host over SSH.
 
 | File 			| Answers 					|
-| --------------------- | --------------------------------------------- |
+| --------------------- + --------------------------------------------- |
 | `ansible.cfg`  	| **How** to connect and where the inventory is |
 | `inventory/hosts.yml` | **Where**: machines and groups 		|
 | `group_vars/` 	| **With which values** 			|
@@ -57,7 +56,7 @@ child wins).
 **Role directories.**
 
 | Directory 	| Purpose 								|
-| ------------- | ---------------------------------------------------------------------	|
+| ------------- + ---------------------------------------------------------------------	|
 | `tasks/` 	| What the role does, in order (`main.yml` is the entry point) 		|
 | `handlers/` 	| Run only when **notified** by a change; at the end of the play, once 	|
 | `templates/` 	| `.j2` files with variables, rendered per host (`template` module) 	|
@@ -91,8 +90,8 @@ ansible-playbook playbooks/site.yml --tags validar      # etcd validation only
 
 ## Pitfalls we actually hit
 
-| Error | Cause | Lesson |
-| --- | --- | --- |
+| Error                                                         | Cause                                                 | Lesson                                                                                |
+| ------------------------------------------------------------- + ----------------------------------------------------- + ------------------------------------------------------------------------------------- |
 | `loop requires a list, got [[ common_firewall_ports }}` 	| Brackets instead of braces 				| Variables are `"{{ }}"`, quoted when the value starts with `{{`. Read the value after "|								 |					 		 |got". 										|
 | Assert failed with 0 healthy members under `--check` 		| The `command` module is **skipped** in check mode 	| `check_mode: false` on **read-only** tasks 						|
 | `'etcd_data_dir' is undefined` in an ad hoc command 		| Role `defaults/` only exist while the role runs 	| Test templates with the playbook: `--check --diff --limit` |
