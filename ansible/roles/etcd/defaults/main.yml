@@ -1,0 +1,6 @@
+---
+etcd_client_port: 2379
+etcd_peer_port: 2380
+etcd_data_dir: /var/lib/etcd
+etcd_cluster_token: etcd-cluster
+etcd_initial_cluster_state: new

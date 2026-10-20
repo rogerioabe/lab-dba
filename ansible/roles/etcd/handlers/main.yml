@@ -1,0 +1,12 @@
+---
+- name: Reiniciar etcd
+  ansible.builtin.systemd:
+    name: etcd
+    state: restarted
+  notify: Aguardar etcd
+
+- name: Aguardar etcd 
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ etcd_client_port }}"
+    timeout: 30 

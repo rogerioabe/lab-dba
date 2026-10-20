@@ -1,0 +1,21 @@
+---
+- name: Instalar etcd
+  ansible.builtin.dnf:
+    name: etcd
+    state: present
+    enablerepo: pgdg-rhel9-extras
+
+- name: Configurar etcd
+  ansible.builtin.template:
+    src: etcd.conf.j2
+    dest: /etc/etcd/etcd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar etcd  
+
+- name: etcd habilitado e ativo
+  ansible.builtin.systemd:
+    name: etcd
+    state: started
+    enabled: true

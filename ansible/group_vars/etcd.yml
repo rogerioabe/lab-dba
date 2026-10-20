@@ -1,0 +1,4 @@
+# TODO 5: defina aqui o token do laboratório (lab-etcd).
+#         Pergunta: por que aqui, e não no defaults/ da role? Porque aqui vai valer para todos playbooks
+etcd_cluster_token: lab-etcd
+etcd_initial_cluster_state: new

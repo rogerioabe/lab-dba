@@ -1,0 +1,23 @@
+---
+- name: Instalar EPEL
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Instalar pacotes base
+  ansible.builtin.dnf:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Garantir firewalld ativo
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Liberar portas do cluster
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent:  true
+    state: enabled
+  loop: "{{ common_firewall_ports }}"

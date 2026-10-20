@@ -1,0 +1,32 @@
+---
+- name: Base comum
+  hosts: postgres
+  roles:
+    - common
+
+- name: Cluster etcd
+  hosts: etcd
+  serial: 1 
+  roles:
+    - etcd
+
+- name: Validar o etcd
+  hosts: etcd
+  gather_facts: false
+  tags: validar
+  tasks:
+    - name: Saúde dos membros
+      ansible.builtin.command: >
+        etcdctl --endpoints={{ groups['etcd'] | map('extract', hostvars, 'ansible_host')
+        | map('regex_replace', '$', ':2379') | join(',') }} endpoint health
+      register: saude
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      run_once: true
+
+    - name: Todos os membros saudaveis 
+      ansible.builtin.assert: 
+        that: "(saude.stdout + saude.stderr).count('is healthy') == groups['etcd'] | length" 
+        success_msg: "etcd OK em {{ groups['etcd'] | length }} nós" 
+      run_once: true
