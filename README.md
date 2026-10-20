@@ -60,3 +60,8 @@
   - Patroni Architecture 
   - Patroni Instalation and Configuration
   - Patroni Failover and Switchover
+## Week 9 - Ansible - Common and ETCD Roles
+  - Inventory, Variables and Roles
+  - variables precedents
+  - etcd templates, tokes, handlers and tasks
+  - run playbooks with --check and --diff parameters
