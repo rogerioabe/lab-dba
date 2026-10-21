@@ -66,3 +66,6 @@
   - etcd templates, tokes, handlers and tasks
   - run playbooks with --check and --diff parameters
 ## Week 10 - Ansible: patroni_cluster, haproxy and pg_client applied
+  - playbook site.yml
+  - playbook cluster.yml: re-create cluster with patroni HA with 3 nodes
+  - playbook validar.yml: validate cluster status
