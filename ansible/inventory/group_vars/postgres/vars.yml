@@ -1,6 +1,6 @@
 # Variáveis do cluster PostgreSQL/Patroni.
 # ATENÇÃO: senhas em texto puro só até a aula 12 (Ansible Vault).
 patroni_scope: lab
-patroni_superuser_password: postgres 
 patroni_replication_user: replicador
-patroni_replication_password: "repl123"
+patroni_superuser_password: "{{ vault_patroni_superuser_password }}"
+patroni_replication_password: "{{ vault_patroni_replication_password }}"

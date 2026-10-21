@@ -31,6 +31,7 @@
     group: postgres
     mode: "600"
     backup: true
+  diff: false
   notify: Reload Patroni
 
 - name: Patroni habilitado e ativo
