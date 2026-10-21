@@ -31,4 +31,5 @@
     port: "{{ item }}"
     permanent:  true
     state: enabled
+    immediate: true
   loop: "{{ common_firewall_ports }}"
