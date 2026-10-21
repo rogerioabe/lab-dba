@@ -69,3 +69,4 @@
   - playbook site.yml
   - playbook cluster.yml: re-create cluster with patroni HA with 3 nodes
   - playbook validar.yml: validate cluster status
+  - vault pass
