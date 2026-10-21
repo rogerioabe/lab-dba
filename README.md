@@ -65,3 +65,4 @@
   - variables precedents
   - etcd templates, tokes, handlers and tasks
   - run playbooks with --check and --diff parameters
+## Week 10 - Ansible: patroni_cluster, haproxy and pg_client applied
