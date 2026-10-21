@@ -4,6 +4,7 @@
     name: etcd
     state: restarted
   notify: Aguardar etcd
+  throttle: 1
 
 - name: Aguardar etcd 
   ansible.builtin.wait_for:

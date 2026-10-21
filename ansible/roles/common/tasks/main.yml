@@ -11,9 +11,9 @@
     disable_gpg_check: true 
 
 - name: Desabilitar o modulo postgresql do Rocky
-    ansible.builtin.command: dnf -qy module disable postgresql
-    register: modulo
-    changed_when: "'Disabling' in modulo.stdout"
+  ansible.builtin.command: dnf -qy module disable postgresql
+  register: modulo
+  changed_when: "'Disabling' in modulo.stdout"
 
 - name: Instalar pacotes base
   ansible.builtin.dnf:

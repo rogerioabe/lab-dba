@@ -3,6 +3,7 @@
   hosts: postgres
   serial: 1
   roles:
+    - pg_client
     - patroni_cluster
 
 - name: HAProxy
