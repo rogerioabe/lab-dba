@@ -1,0 +1,6 @@
+---
+haproxy_write_port: 5000
+haproxy_read_port: 5001
+haproxy_stats_port: 7000
+haproxy_pg_port: 5432
+haproxy_patroni_api_port: 8008

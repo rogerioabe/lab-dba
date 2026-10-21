@@ -1,0 +1,49 @@
+---
+- name: Instalar PostgreSQL e Patroni
+  ansible.builtin.dnf:
+    name:
+      - "postgresql{{ pg_version }}-server"
+      - "postgresql{{ pg_version }}-contrib"
+      - patroni
+      - patroni-etcd
+    state: present
+    enablerepo: pgdg-rhel9-extras
+
+- name: Postgres parado e desabilitado
+  ansible.builtin.systemd:
+    name: postgresql-{{ pg_version }}
+    state: stopped
+    enabled: false
+
+- name: Diretório de configuração do Patroni
+  ansible.builtin.file:
+    path: /etc/patroni
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+
+- name: Configurar Patroni
+  ansible.builtin.template:
+    src: patroni.yml.j2
+    dest: /etc/patroni/patroni.yml
+    owner: postgres
+    group: postgres
+    mode: "600"
+    backup: true
+  notify: Reload Patroni
+
+- name: Patroni habilitado e ativo
+  ansible.builtin.systemd:
+    name: patroni
+    state: started
+    enabled: true
+
+- name: Resposta API
+  ansible.builtin.uri:
+    url: "http://{{ ansible_host }}:{{ patroni_api_port }}/health"
+  register: _result
+  until: _result.status == 200
+  retries: 30 
+  delay: 10
+  check_mode: false

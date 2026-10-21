@@ -1,0 +1,9 @@
+---
+pg_version: 18
+pg_data_dir: "/var/lib/pgsql/{{ pg_version }}/data"
+pg_bin_dir: "/usr/pgsql-{{ pg_version }}/bin"
+pg_port: 5432
+patroni_api_port: 8008
+patroni_scope: postgres-cluster
+patroni_replication_user: replicator
+patroni_allowed_network: 192.168.56.0/24

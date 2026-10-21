@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+global
+    maxconn 200
+
+defaults
+    mode tcp
+    timeout connect 4s
+    timeout client 30m
+    timeout server 30m
+    timeout check 5s
+
+listen stats
+    mode http
+    bind *:{{ haproxy_stats_port }}
+    stats enable
+    stats uri /
+
+listen primary
+    bind *:{{ haproxy_write_port }}
+    option httpchk
+    http-check send meth GET uri /primary
+    http-check expect status 200
+    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+{% for h in groups['postgres'] %}
+    server {{ h }} {{ hostvars[h]['ansible_host'] }}:{{ haproxy_pg_port }} maxconn 100 check port {{ haproxy_patroni_api_port }}
+{% endfor %}
+
+listen replicas
+    bind *:{{ haproxy_read_port }}
+    balance roundrobin
+    option httpchk
+    http-check send meth GET uri /replica
+    http-check expect status 200
+    default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+{% for h in groups['postgres'] %}
+    server {{ h }} {{ hostvars[h]['ansible_host'] }}:{{ haproxy_pg_port }} maxconn 100 check port {{ haproxy_patroni_api_port }}
+{% endfor %}

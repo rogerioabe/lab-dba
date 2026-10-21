@@ -1,0 +1,59 @@
+# {{ ansible_managed }}
+scope: {{ patroni_scope }}
+name: {{ inventory_hostname }}
+
+restapi:
+  listen: 0.0.0.0:{{ patroni_api_port }}
+  connect_address: {{ ansible_host }}:{{ patroni_api_port }}
+
+etcd3:
+  hosts: "{% for h in groups['etcd'] %}{{ hostvars[h]['ansible_host'] }}:2379{{ ',' if not loop.last }}{% endfor %}"
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_log_hints: "on"
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+postgresql:
+  listen: 0.0.0.0:{{ pg_port }}
+  connect_address: {{ ansible_host }}:{{ pg_port }}
+  data_dir: {{ pg_data_dir }}
+  bin_dir: {{ pg_bin_dir }}
+  pgpass: /tmp/pgpass0
+  authentication:
+    superuser:
+      username: postgres
+      password: "{{ patroni_superuser_password }}"
+    replication:
+      username: "{{ patroni_replication_user }}" 
+      password: "{{ patroni_replication_password }}"
+    rewind:
+      username: postgres
+      password: "{{ patroni_superuser_password }}"
+  pg_hba:
+    - local all all peer
+    - host replication {{ patroni_replication_user }} {{ patroni_allowed_network }} scram-sha-256
+    - host all all {{ patroni_allowed_network }} scram-sha-256
+    - host all all 127.0.0.1/32 scram-sha-256
+  parameters:
+    unix_socket_directories: /run/postgresql
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false

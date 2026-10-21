@@ -1,0 +1,12 @@
+---
+- name: Cluster Patroni (um nó por vez)
+  hosts: postgres
+  serial: 1
+  roles:
+    - patroni_cluster
+
+- name: HAProxy
+  hosts: haproxy
+  roles:
+    - haproxy
+    - pg_client

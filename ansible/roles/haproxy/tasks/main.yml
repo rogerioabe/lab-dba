@@ -1,0 +1,36 @@
+---
+- name: Instalar HAProxy
+  ansible.builtin.dnf:
+    name: haproxy
+    state: present
+
+- name: Permitir que o HAProxy conecte em qualquer porta (SELinux)
+  ansible.posix.seboolean:
+    name: haproxy_connect_any
+    state: true
+    persistent: true
+
+- name: Configurar HAProxy
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: "0644"
+    validate: haproxy -c -f %s
+  notify: Recarregar haproxy
+
+- name: Liberar portas do HAProxy
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "{{ haproxy_write_port }}"
+    - "{{ haproxy_read_port }}"
+    - "{{ haproxy_stats_port }}"
+
+- name: HAProxy habilitado e ativo
+  ansible.builtin.systemd:
+    name: haproxy
+    state: started
+    enabled: true

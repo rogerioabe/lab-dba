@@ -30,3 +30,5 @@
         that: "(saude.stdout + saude.stderr).count('is healthy') == groups['etcd'] | length" 
         success_msg: "etcd OK em {{ groups['etcd'] | length }} nós" 
       run_once: true
+
+- import_playbook: cluster.yml
