@@ -1,0 +1,55 @@
+---
+- name: Validar o cluster
+  hosts: postgres
+  run_once: true
+  tasks:
+    - name: Estado do cluster pelo Patroni 
+      ansible.builtin.command: patronictl -c /etc/patroni/patroni.yml list -f json 
+      become_user: postgres
+      register: _patroni
+      changed_when: false 
+      check_mode: false 
+
+    - name: Exatamente 1 líder e 2 réplicas em streaming
+      ansible.builtin.assert:
+        that:
+          - _patroni.stdout | from_json | selectattr('Role', 'equalto', 'Leader') | list | length == 1
+          - _patroni.stdout | from_json | selectattr('State', 'equalto', 'streaming') | list | length == 2
+        fail_msg: "Cluster inconsistente. Estado atual: {{ _patroni.stdout }}" 
+        success_msg: "Cluster OK: 1 líder, 2 réplicas em streaming"
+
+    - name: A porta de escrita do HAProxy cai no primário
+      ansible.builtin.command: >
+        psql -h {{ hostvars['ctl']['ansible_host'] }} -p 5000 -U postgres
+        -Atc "select pg_is_in_recovery()"
+      environment:
+        PGPASSWORD: "{{ patroni_superuser_password }}"
+      register: _porta_5000
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: A porta 5000 respondeu f
+      ansible.builtin.assert:
+        that:
+          - _porta_5000.stdout == 'f'
+        fail_msg: "A porta 5000 NÃO caiu no primário: pg_is_in_recovery = {{ _porta_5000.stdout }}"
+        success_msg: "Porta 5000 OK: conectou no primário"
+
+    - name: A porta de escrita do HAProxy cai no secundario
+      ansible.builtin.command: >
+        psql -h {{ hostvars['ctl']['ansible_host'] }} -p 5001 -U postgres
+        -Atc "select pg_is_in_recovery()"
+      environment:
+        PGPASSWORD: "{{ patroni_superuser_password }}"
+      register: _porta_5001
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: A porta 5001 respondeu t
+      ansible.builtin.assert:
+        that:
+          - _porta_5001.stdout == 't'
+        fail_msg: "A porta 5001 NÃO caiu no secundario: pg_is_in_recovery = {{ _porta_5001.stdout }}"
+        success_msg: "Porta 5001 OK: conectou no secundario"        

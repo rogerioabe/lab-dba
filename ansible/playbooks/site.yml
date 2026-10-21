@@ -31,3 +31,4 @@
       run_once: true
 
 - import_playbook: cluster.yml
+- import_playbook: validar.yml
