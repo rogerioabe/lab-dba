@@ -42,7 +42,7 @@ postgresql:
       password: SENHA_POSTGRES
     replication:
       username: replicador
-      password: repl123
+      password: SENHA_REPLICACAO
     rewind:
       username: postgres
       password: SENHA_POSTGRES

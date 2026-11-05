@@ -12,7 +12,7 @@ sudo -iu postgres sed -i '/^recovery_target/d;/^restore_command/d' /var/lib/pgsq
 
 -- creating the replicator role 
 [vagrant@db1 ~]$ sudo -iu postgres psql <<'EOF'
-CREATE ROLE replicador WITH REPLICATION LOGIN PASSWORD 'repl123';
+CREATE ROLE replicador WITH REPLICATION LOGIN PASSWORD 'SENHA_REPLICACAO';
 ALTER SYSTEM SET cluster_name = 'db1';
 SHOW max_wal_senders;
 SHOW max_replication_slots;
@@ -68,8 +68,8 @@ Oct 16 11:27:21 db1 systemd[1]: Started PostgreSQL 18 database server.
 vagrant ssh db2 
 
 -- senha do replicador para o usuário postgres do db2 (campo do banco = replication)
-echo "db1:5432:replication:replicador:repl123" | sudo -iu postgres tee /var/lib/pgsql/.pgpass
-db1:5432:replication:replicador:repl123
+echo "db1:5432:replication:replicador:SENHA_REPLICACAO" | sudo -iu postgres tee /var/lib/pgsql/.pgpass
+db1:5432:replication:replicador:SENHA_REPLICACAO
 
 sudo -iu postgres chmod 600 /var/lib/pgsql/.pgpass
 
@@ -572,7 +572,7 @@ pg_rewind: no rewind required
 
 
 -- if the password was requested, re-create the .pgpass 
-printf '%s\n' 'db2:5432:*:postgres:postgres' 'db2:5432:replication:replicador:repl123' > ~/.pgpass
+printf '%s\n' 'db2:5432:*:postgres:postgres' 'db2:5432:replication:replicador:SENHA_REPLICACAO' > ~/.pgpass
 chmod 600 .pgpass 
 
 -- changing the user replication (primary_conninfo)

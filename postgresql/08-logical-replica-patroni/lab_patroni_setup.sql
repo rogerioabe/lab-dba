@@ -172,7 +172,7 @@ vendas=# SELECT * FROM pg_publication_tables;
 (3 rows)
 
 -- setting the password file 
-echo "db1:5432:vendas:replicador:repl123" | sudo -iu postgres tee /var/lib/pgsql/.pgpass
+echo "db1:5432:vendas:replicador:SENHA_REPLICACAO" | sudo -iu postgres tee /var/lib/pgsql/.pgpass
 sudo -iu postgres chmod 600 /var/lib/pgsql/.pgpass
 
 -- creating subscription on db3 
@@ -1010,13 +1010,13 @@ postgresql:
   authentication:
     superuser:
       username: postgres
-      password: postgres
+      password: SENHA_POSTGRES
     replication:
       username: replicador
-      password: repl123
+      password: SENHA_REPLICACAO
     rewind:
       username: postgres
-      password: postgres
+      password: SENHA_POSTGRES
   pg_hba:
     - local all all peer
     - host replication replicador 192.168.56.0/24 scram-sha-256
@@ -1074,13 +1074,13 @@ postgresql:
   authentication:
     superuser:
       username: postgres
-      password: postgres
+      password: SENHA_POSTGRES
     replication:
       username: replicador
-      password: repl123
+      password: SENHA_REPLICACAO
     rewind:
       username: postgres
-      password: postgres
+      password: SENHA_POSTGRES
   pg_hba:
     - local all all peer
     - host replication replicador 192.168.56.0/24 scram-sha-256
@@ -1138,13 +1138,13 @@ postgresql:
   authentication:
     superuser:
       username: postgres
-      password: postgres
+      password: SENHA_POSTGRES
     replication:
       username: replicador
-      password: repl123
+      password: SENHA_REPLICACAO
     rewind:
       username: postgres
-      password: postgres
+      password: SENHA_POSTGRES
   pg_hba:
     - local all all peer
     - host replication replicador 192.168.56.0/24 scram-sha-256
