@@ -1,76 +1,77 @@
-# Lab DBA — PostgreSQL, MySQL, Ansible
+# Lab DBA — PostgreSQL HA as code
 
-## Week 1 — PostgreSQL 18 - connect to ctl
-- db1: Manual Installation (PGDG), Cluster creation, Network
-- db2/db3: binaries by Ansible (pg-binarios.yml), for replicas without initdb
-- Architeture notes: (processes, shared_buffers, pg_wal...)
-- login dba  
-## Week 2 roles, schemas, grants and tablespaces
-- MCVV tables
-  - controled inside tables
-  - updates and deletes creates a new row inside the table, changing its ctid.
-## Week 3 - MVCC, VACUUM, Autovacuum and bloat
-  - Investigating fragmentation by using the following queries:
-    SELECT * FROM pgstattuple('bloat');
-    SELECT pg_size_pretty(table_len)        AS tamanho_total,
-       tuple_count                      AS linhas_vivas,
-       pg_size_pretty(tuple_len)        AS espaco_vivas,
-       round(tuple_percent::numeric, 1) AS pct_vivas,
-       dead_tuple_count                 AS linhas_mortas,
-       round(dead_tuple_percent::numeric, 1) AS pct_mortas,
-       pg_size_pretty(free_space)       AS espaco_livre,
-       round(free_percent::numeric, 1)  AS pct_livre
-    FROM pgstattuple('bloat');
-    SELECT * FROM pgstattuple_approx('bloat');
-    SELECT avg_leaf_density, leaf_fragmentation FROM pgstatindex('bloat_pkey');
-## Week 4 - Configuration and parameters
-  - main memory parameters
-  - pg_settings view 
-  - create a bench environment for testing and measuring TPS
-  - tuning memory parameters
-## Week 5 - Backup and Restore
-  - Backup tools: pg_dump, pg_dumpall and pg_basebackup
-  - Restore tools: pg_restore
-  - Restore files: recovery_signal 
-  - restore_command for wal files
-  - performing restore using dump
-  - performing restore using physical backup
-## Week 6 - Restore PITR 
-  - main parameters
-  - pgBackRest tool
-  - stanza (catalog)
-  - type of backup (full, diff and inc)
-  - labs
-## Week 7 - Physical Replication (Streaming), Standby and Failover
-  - Concept
-  - Slots
-  - Walsender and Walreceiver
-  - Primary and Replica
-  - Mains views: pg_stat_replication, pg_replication_slots and pg_stat_wal_receiver
-  - pg_is_in_recovery() 
-  - creating replica using pg_basebackup -R and pgbackrest --stanza=... --type=standby restore
-  - failover and switchover using SELECT pg_promote();    
-  - /var/lib/pgsql/18/data/standby.signal for standby
-  - parameters primary_conninfo and primary_slot_name on standby
-  - labs 
-## Week 8 - Logical Replication and Patroni 
-  - Logical replica Architecture
-  - Subscrptions 
-  - Replications rules (DDL, sequence, large objects and mview not replicated) 
-  - Patroni Architecture 
-  - Patroni Instalation and Configuration
-  - Patroni Failover and Switchover
-## Week 9 - Ansible - Common and ETCD Roles
-  - Inventory, Variables and Roles
-  - variables precedents
-  - etcd templates, tokes, handlers and tasks
-  - run playbooks with --check and --diff parameters
-## Week 10 - Ansible: patroni_cluster, haproxy and pg_client applied
-  - playbook site.yml
-  - playbook cluster.yml: re-create cluster with patroni HA with 3 nodes
-  - playbook validar.yml: validate cluster status
-  - vault pass
-## Week 11 - Ansible: Create Database, Users and Grants with community.postgresql
-  - playbook db_objects.yml - to create the postgres database, users and grant
-  - requirements.yml - specify the community progress
-  - vault.yml 
+Hands-on lab of a senior Oracle DBA moving into PostgreSQL infrastructure: a 3-node
+PostgreSQL 18 cluster with Patroni, etcd and HAProxy, built and operated as code with
+Ansible. Each lesson keeps its own notes, SQL and lab log.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    client["Clients / psql"] --> haproxy["HAProxy on ctl<br/>5000 = primary<br/>5001 = replicas"]
+    subgraph cluster["PostgreSQL 18 + Patroni + etcd"]
+        db1[("db1")]
+        db2[("db2")]
+        db3[("db3")]
+    end
+    haproxy --> db1
+    haproxy --> db2
+    haproxy --> db3
+    ansible["ctl: Ansible control node"] -. SSH .-> cluster
+```
+
+| VM  | IP            | Role                                                   |
+| --- | ------------- | ------------------------------------------------------ |
+| db1 | 192.168.56.11 | PostgreSQL 18 + Patroni + etcd                         |
+| db2 | 192.168.56.12 | PostgreSQL 18 + Patroni + etcd                         |
+| db3 | 192.168.56.13 | PostgreSQL 18 + Patroni + etcd                         |
+| ctl | 192.168.56.10 | Ansible control node, HAProxy, psql client             |
+
+## Skills shown
+
+- PostgreSQL 18 administration: architecture, roles and privileges, configuration and tuning
+- MVCC, VACUUM, bloat and transaction ID wraparound
+- Backup and recovery: pg_dump, pg_basebackup, pgBackRest, point-in-time recovery
+- Physical and logical replication, failover and switchover
+- High availability with Patroni, etcd and HAProxy
+- Infrastructure as code with Ansible: roles, templates, handlers, Ansible Vault,
+  `community.postgresql`, idempotent playbooks
+
+## Repository map
+
+| Folder | Content |
+| ------ | ------- |
+| [`infra/`](infra/) | Vagrant definition of the 4 VMs and Windows helper scripts |
+| [`postgresql/01-architecture`](postgresql/01-architecture/) | Processes, memory, files |
+| [`postgresql/02-role-schemas_tablespace`](postgresql/02-role-schemas_tablespace/) | Roles, schemas, grants, tablespaces |
+| [`postgresql/03-mvcc-vacuum`](postgresql/03-mvcc-vacuum/) | MVCC, VACUUM, bloat |
+| [`postgresql/04-settings-parameters`](postgresql/04-settings-parameters/) | Configuration and memory tuning with pgbench |
+| [`postgresql/05-backup`](postgresql/05-backup/) | Logical and physical backup |
+| [`postgresql/06-restore-pitr`](postgresql/06-restore-pitr/) | Restore, PITR, pgBackRest |
+| [`postgresql/07-replication`](postgresql/07-replication/) | Streaming replication, slots, failover |
+| [`postgresql/08-logical-replica-patroni`](postgresql/08-logical-replica-patroni/) | Logical replication, Patroni |
+| [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
+
+## How to reproduce
+
+```bash
+# On the host (VirtualBox + Vagrant)
+cd infra
+vagrant up
+
+# On ctl
+vagrant ssh ctl
+cd ~/lab-dba/ansible
+ansible-galaxy collection install -r requirements.yml
+echo 'your-vault-password' > ~/.vault_pass && chmod 0600 ~/.vault_pass
+ansible-playbook playbooks/site.yml          # etcd + Patroni + HAProxy + validation
+ansible-playbook playbooks/db_objects.yml    # databases, users and privileges
+```
+
+## Roadmap
+
+- Ansible day-2 operations: rolling restart and node-by-node patching with switchover
+- Terraform and AWS (RDS and Aurora PostgreSQL)
+- Oracle to PostgreSQL migration with AWS SCT and DMS
+- PostgreSQL on Kubernetes with CloudNativePG
+- AI workloads on PostgreSQL with pgvector
