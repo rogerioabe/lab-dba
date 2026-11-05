@@ -1,0 +1,78 @@
+---
+- name: Databases, Users and Privileges
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files: 
+    - ../inventory/group_vars/postgres/vault.yml
+
+  vars:
+    pg_host: 127.0.0.1
+    pg_port: 5000
+
+  tasks:
+    - name: Create user app_user (db owner)
+      community.postgresql.postgresql_user:
+        name: app_user
+        password: "{{ vault_app_user_password }}"
+        no_password_changes: true
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+      no_log: true
+
+    - name: Create app_ro user (read only without pass)
+      community.postgresql.postgresql_user:
+        name: app_ro
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+
+    - name: Create appdb database with app_user owner 
+      community.postgresql.postgresql_db:
+        name: appdb
+        owner: app_user
+        state: present
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+
+    - name: GRANT CONNECT on appdb to app_ro
+      community.postgresql.postgresql_privs:
+        login_db: appdb
+        type: database
+        objs: appdb
+        privs: CONNECT
+        roles: app_ro
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+
+    - name: GRANT USAGE on schema public TO app_ro
+      community.postgresql.postgresql_privs:
+        login_db: appdb
+        type: schema
+        objs: public
+        privs: USAGE
+        roles: app_ro
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
+
+    - name: GRANT SELECT ALL TABLE in schema public TO app_ro
+      community.postgresql.postgresql_privs:
+        login_db: appdb
+        type: table
+        objs: ALL_IN_SCHEMA
+        schema: public
+        privs: SELECT
+        roles: app_ro
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ vault_postgres_password }}"
