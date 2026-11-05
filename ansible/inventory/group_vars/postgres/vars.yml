@@ -4,3 +4,14 @@ patroni_scope: lab
 patroni_replication_user: replicador
 patroni_superuser_password: "{{ vault_patroni_superuser_password }}"
 patroni_replication_password: "{{ vault_patroni_replication_password }}"
+postgres_password: "{{ vault_postgres_password }}"
+
+
+pg_users:
+  - name: app_user
+    password: "{{ vault_app_user_password }}"
+  - name: app_ro
+
+pg_databases:
+  - name: appdb
+    owner: app_user
