@@ -70,3 +70,7 @@
   - playbook cluster.yml: re-create cluster with patroni HA with 3 nodes
   - playbook validar.yml: validate cluster status
   - vault pass
+## Week 11 - Ansible: Create Database, Users and Grants with community.postgresql
+  - playbook db_objects.yml - to create the postgres database, users and grant
+  - requirements.yml - specify the community progress
+  - vault.yml 
