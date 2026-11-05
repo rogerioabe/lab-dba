@@ -6,7 +6,7 @@ managed as code from the `ctl` node.
 
 > **Status (lesson 12, in progress):** the whole cluster (etcd + Patroni + HAProxy) was
 > destroyed and rebuilt from scratch with one playbook, `site.yml`, which imports
-> `cluster.yml` and `validar.yml`. Secrets live in Ansible Vault. Databases, users and privileges are
+> `cluster.yml` and `validate.yml`. Secrets live in Ansible Vault. Databases, users and privileges are
 > created by `db_objects.yml` with `community.postgresql`. Next: rolling restart and
 > node-by-node patching with switchover.
 
@@ -25,9 +25,9 @@ ansible/
 │           ├── vars.yml          # plain values: users and databases lists, aliases to secrets
 │           └── vault.yml         # secrets only, encrypted with Ansible Vault
 ├── playbooks/
-│   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validar.yml
+│   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validate.yml
 │   ├── cluster.yml               # Patroni one node at a time (serial: 1) -> HAProxy + psql client on ctl
-│   ├── validar.yml               # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
+│   ├── validate.yml               # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
 │   └── db_objects.yml            # databases, users and privileges as code
 ├── roles/
 │   ├── common/                   # OS baseline: EPEL, packages, firewalld, ports
@@ -35,7 +35,7 @@ ansible/
 │   ├── patroni_cluster/          # PostgreSQL 18 + Patroni, patroni.yml per node
 │   ├── haproxy/                  # HAProxy on ctl: 5000 -> primary, 5001 -> replicas
 │   └── pg_client/                # psql client on ctl
-└── legado/                       # week 1 files (inventario.ini, pg-binarios.yml)
+└── legacy/                       # week 1 files (inventario.ini, pg-binarios.yml)
 ```
 
 ## How a run works
@@ -150,7 +150,7 @@ members would restart together, the cluster would lose quorum and Patroni would 
 the primary.
 
 **`import_playbook`.** `site.yml` is the single entry point: it imports `cluster.yml` and
-`validar.yml`, so one command builds and checks the whole cluster, while each part can
+`validate.yml`, so one command builds and checks the whole cluster, while each part can
 still run on its own.
 
 **Idempotency.** Every playbook must report `changed=0` on a second run. A refactor is
@@ -161,7 +161,7 @@ validated the same way: the new code must describe exactly the same state.
 ```bash
 cd ~/lab-dba/ansible
 
-# Whole cluster: site.yml runs common -> etcd -> cluster.yml -> validar.yml
+# Whole cluster: site.yml runs common -> etcd -> cluster.yml -> validate.yml
 ansible-playbook playbooks/site.yml --syntax-check
 ansible-playbook playbooks/site.yml --check --diff      # preview: read the diff!
 ansible-playbook playbooks/site.yml                     # build or converge everything
@@ -170,7 +170,7 @@ ansible-playbook playbooks/site.yml --tags validar      # etcd validation only
 
 # One part only
 ansible-playbook playbooks/cluster.yml                  # Patroni (serial: 1) + HAProxy
-ansible-playbook playbooks/validar.yml                  # cluster and routing check
+ansible-playbook playbooks/validate.yml                  # cluster and routing check
 
 # Databases, users and privileges
 ansible-playbook playbooks/db_objects.yml --check --diff   # privilege tasks fail on the first preview (database not created yet)
