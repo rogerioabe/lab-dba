@@ -1,10 +1,10 @@
 # Variáveis do cluster PostgreSQL/Patroni.
-# ATENÇÃO: senhas em texto puro só até a aula 12 (Ansible Vault).
+# Secrets live in vault.yml; this file only holds plain aliases to them.
 patroni_scope: lab
 patroni_replication_user: replicador
 patroni_superuser_password: "{{ vault_patroni_superuser_password }}"
 patroni_replication_password: "{{ vault_patroni_replication_password }}"
-postgres_password: "{{ vault_postgres_password }}"
+postgres_password: "{{ patroni_superuser_password }}"
 
 
 pg_users:
