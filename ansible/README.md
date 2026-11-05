@@ -1,28 +1,41 @@
-# Ansible — : `common` and `etcd` roles
+# Ansible — PostgreSQL HA lab as code
 
-Lab automation with Ansible: the OS baseline and the etcd cluster on the
-3 nodes (db1, db2, db3) are now managed as code.
+Lab automation with Ansible: the OS baseline, the etcd cluster, Patroni, HAProxy and the
+database objects (databases, users, privileges) of the 3-node PostgreSQL 18 cluster are
+managed as code from the `ctl` node.
 
-> **Status:** the etcd cluster, built by hand in lesson 8, was **taken over**
-> by Ansible (the expected diff was only the `# Ansible managed` line).
-> Patroni is still manual; it comes in lesson 11.
+> **Status (lesson 12, in progress):** the whole cluster (etcd + Patroni + HAProxy) was
+> destroyed and rebuilt from scratch with one playbook, `site.yml`, which imports
+> `cluster.yml` and `validar.yml`. Secrets live in Ansible Vault. Databases, users and privileges are
+> created by `db_objects.yml` with `community.postgresql`. Next: rolling restart and
+> node-by-node patching with switchover.
 
 ## Project layout
 
 ```
 ansible/
-├── ansible.cfg               # how to connect: inventory, user, sudo
+├── ansible.cfg                   # how to connect: inventory, user, sudo, vault password file
+├── requirements.yml              # collections the project needs (community.postgresql)
 ├── inventory/
-│   └── hosts.yml             # where: hosts and groups (postgres; etcd = children of postgres)
-├── group_vars/
-│   ├── all.yml               # base packages and cluster ports
-│   └── etcd.yml              # etcd cluster token for the lab
+│   ├── hosts.yml                 # where: postgres (db1-db3), etcd (children: postgres), haproxy (ctl, local connection)
+│   └── group_vars/
+│       ├── all.yml               # base packages and cluster ports
+│       ├── etcd.yml              # etcd cluster token for the lab
+│       └── postgres/
+│           ├── vars.yml          # plain values: users and databases lists, aliases to secrets
+│           └── vault.yml         # secrets only, encrypted with Ansible Vault
 ├── playbooks/
-│   └── site.yml              # what, on whom: common -> etcd (serial: 1) -> validation
+│   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validar.yml
+│   ├── cluster.yml               # Patroni one node at a time (serial: 1) -> HAProxy + psql client on ctl
+│   ├── validar.yml               # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
+│   └── db_objects.yml            # databases, users and privileges as code
 ├── roles/
-│   ├── common/               # OS baseline: EPEL, packages, firewalld, ports
-│   └── etcd/                 # install, per-node etcd.conf, controlled restart
-└── legado/                   # week 1 files (inventario.ini, pg-binarios.yml)
+│   ├── common/                   # OS baseline: EPEL, packages, firewalld, ports
+│   ├── etcd/                     # install, per-node etcd.conf, controlled restart
+│   ├── patroni_cluster/          # PostgreSQL 18 + Patroni, patroni.yml per node
+│   ├── haproxy/                  # HAProxy on ctl: 5000 -> primary, 5001 -> replicas
+│   └── pg_client/                # psql client on ctl
+└── legado/                       # week 1 files (inventario.ini, pg-binarios.yml)
 ```
 
 ## How a run works
@@ -30,85 +43,152 @@ ansible/
 1. `ansible-playbook playbooks/site.yml`
 2. Ansible reads `ansible.cfg` from the current directory and finds the inventory.
 3. It reads the inventory and builds the hosts and groups.
-4. It loads the variables from `group_vars/`.
-5. Each play selects hosts by group (`hosts: postgres`, `hosts: etcd`).
+4. It loads the variables from `inventory/group_vars/` (and decrypts `vault.yml` with the
+   password file set in `ansible.cfg`).
+5. Each play selects hosts by group (`hosts: postgres`, `hosts: etcd`, ...).
 6. The roles run tasks, templates and handlers on each host over SSH.
 
-| File 			| Answers 					|
-| --------------------- + --------------------------------------------- |
-| `ansible.cfg`  	| **How** to connect and where the inventory is |
-| `inventory/hosts.yml` | **Where**: machines and groups 		|
-| `group_vars/` 	| **With which values** 			|
-| `playbooks/site.yml` 	| **What, on whom** 				|
-| `roles/` 		| **How to do it** 				|
+| File                     | Answers                                       |
+| ------------------------ | --------------------------------------------- |
+| `ansible.cfg`            | **How** to connect and where the inventory is |
+| `inventory/hosts.yml`    | **Where**: machines and groups                |
+| `inventory/group_vars/`  | **With which values**                         |
+| `playbooks/`             | **What, on whom**                             |
+| `roles/`                 | **How to do it**                              |
+
+## Variables and secrets
+
+Data, logic and secrets are kept apart:
+
+| File                                   | Holds                                            | Encrypted |
+| -------------------------------------- | ------------------------------------------------ | --------- |
+| `inventory/group_vars/postgres/vault.yml` | Secrets only (`vault_*` variables)            | Yes       |
+| `inventory/group_vars/postgres/vars.yml`  | Lists of users and databases, plain aliases   | No        |
+| `playbooks/*.yml`                      | Logic only: what to do with each item            | No        |
+
+**Alias pattern.** `vars.yml` exposes each secret under a plain name, and the playbooks use
+only the plain name:
+
+```yaml
+postgres_password: "{{ vault_postgres_password }}"
+```
+
+So `grep -r postgres_password` shows where a value comes from even though the vault is
+encrypted, and renaming a vault variable means changing one line, not every task.
+
+**Vault commands.**
+
+```bash
+ansible-vault view inventory/group_vars/postgres/vault.yml | cut -d: -f1   # variable names only
+ansible-vault edit inventory/group_vars/postgres/vault.yml
+head -1 inventory/group_vars/postgres/vault.yml                             # $ANSIBLE_VAULT;1.1;AES256
+```
+
+The vault password file (`~/.vault_pass`, mode 0600) lives outside the repository.
+`.pgpass` and `.vagrant/` are never committed.
+
+## Databases, users and privileges as code (`db_objects.yml`)
+
+- Runs on `localhost` (ctl) and connects through **HAProxy port 5000**, which always
+  reaches the Patroni primary, so the playbook does not need to know which node leads.
+- Loads the vault and `vars.yml` with `vars_files` (variables in `group_vars/postgres/`
+  apply only to hosts of the `postgres` group, not to `localhost`).
+- Users and databases come from the `pg_users` and `pg_databases` lists in `vars.yml`
+  (`loop`). Adding a user = adding two lines to `vars.yml`.
+- Privileges follow the 3 layers: `CONNECT` on the database, `USAGE` on the schema,
+  `SELECT` on the tables (`ALL_IN_SCHEMA` covers existing tables only).
+- `no_password_changes: true` writes a password only when the user is created, so a
+  second run reports `changed=0` (passwords are stored as SCRAM hashes).
+- `no_log: true` hides secrets, and also the error message: comment it out while debugging.
+
+Prerequisites on ctl:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+sudo dnf install -y python3-psycopg2 --disablerepo='pgdg*'
+```
 
 ## Key concepts
 
-**Inventory (YAML).** Each group has only three keys: `hosts`, `vars` and
-`children`. `children` creates a group of groups: **hosts flow up** from child
-to parent, and **variables flow down** from parent to child (the more specific
-child wins).
+**Inventory (YAML).** Each group has only three keys: `hosts`, `vars` and `children`.
+`children` creates a group of groups: **hosts flow up** from child to parent, and
+**variables flow down** from parent to child (the more specific child wins).
+
+**Lab inventory.**
+
+| Group      | Hosts                         | Notes                                                |
+| ---------- | ----------------------------- | ---------------------------------------------------- |
+| `postgres` | db1, db2, db3 (192.168.56.11-13) | PostgreSQL 18 + Patroni                           |
+| `etcd`     | children: `postgres`          | The same 3 nodes run etcd                            |
+| `haproxy`  | ctl (192.168.56.10)           | `ansible_connection: local`: the control node itself |
 
 **Variable precedence (summary).** role `defaults/` (weakest) < inventory
-(`group_vars/all` < group < `host_vars`) < play < role `vars/` <
+(`group_vars/all` < group < `host_vars`) < play (`vars`, `vars_files`) < role `vars/` <
 `set_fact`/`register` < **`-e`** (always wins).
 
 **Role directories.**
 
-| Directory 	| Purpose 								|
-| ------------- + ---------------------------------------------------------------------	|
-| `tasks/` 	| What the role does, in order (`main.yml` is the entry point) 		|
-| `handlers/` 	| Run only when **notified** by a change; at the end of the play, once 	|
-| `templates/` 	| `.j2` files with variables, rendered per host (`template` module) 	|
-| `files/` 	| Static files, sent as-is (`copy` module) 				|
-| `defaults/` 	| Default values, meant to be overridden 				|
-| `vars/` 	| Internal values, high precedence 					|
-| `meta/` 	| Metadata and dependencies 						|
+| Directory    | Purpose                                                              |
+| ------------ | -------------------------------------------------------------------- |
+| `tasks/`     | What the role does, in order (`main.yml` is the entry point)         |
+| `handlers/`  | Run only when **notified** by a change; at the end of the play, once |
+| `templates/` | `.j2` files with variables, rendered per host (`template` module)    |
+| `files/`     | Static files, sent as-is (`copy` module)                             |
+| `defaults/`  | Default values, meant to be overridden                               |
+| `vars/`      | Internal values, high precedence                                     |
+| `meta/`      | Metadata and dependencies                                            |
 
 **etcd template.** `ETCD_INITIAL_CLUSTER` is generated from the inventory
 (`groups['etcd']` + `hostvars[h]['ansible_host']` + `loop.last` for the comma).
 No hostname or IP is hard-coded: adding a `db4` to the inventory is enough.
 
-**etcd token.** `ETCD_INITIAL_CLUSTER_TOKEN` makes the ID generated at cluster
-creation unique. It is only read at bootstrap; it is not a password or a secret.
+**etcd token.** `ETCD_INITIAL_CLUSTER_TOKEN` makes the ID generated at cluster creation
+unique. It is only read at bootstrap; it is not a password or a secret.
 
-**`serial: 1`.** Configures and restarts one node at a time. Without it, all 3
-etcd members would restart together, the cluster would lose quorum and Patroni
-would demote the primary.
+**`serial: 1`.** Configures and restarts one node at a time. Without it, all 3 etcd
+members would restart together, the cluster would lose quorum and Patroni would demote
+the primary.
+
+**`import_playbook`.** `site.yml` is the single entry point: it imports `cluster.yml` and
+`validar.yml`, so one command builds and checks the whole cluster, while each part can
+still run on its own.
+
+**Idempotency.** Every playbook must report `changed=0` on a second run. A refactor is
+validated the same way: the new code must describe exactly the same state.
 
 ## How to run
 
 ```bash
 cd ~/lab-dba/ansible
+
+# Whole cluster: site.yml runs common -> etcd -> cluster.yml -> validar.yml
 ansible-playbook playbooks/site.yml --syntax-check
 ansible-playbook playbooks/site.yml --check --diff      # preview: read the diff!
-ansible-playbook playbooks/site.yml --limit db1         # apply to one node first
-ansible-playbook playbooks/site.yml                     # all nodes, one at a time
+ansible-playbook playbooks/site.yml                     # build or converge everything
 ansible-playbook playbooks/site.yml                     # idempotency: changed=0
 ansible-playbook playbooks/site.yml --tags validar      # etcd validation only
+
+# One part only
+ansible-playbook playbooks/cluster.yml                  # Patroni (serial: 1) + HAProxy
+ansible-playbook playbooks/validar.yml                  # cluster and routing check
+
+# Databases, users and privileges
+ansible-playbook playbooks/db_objects.yml --check --diff   # privilege tasks fail on the first preview (database not created yet)
+ansible-playbook playbooks/db_objects.yml
+ansible-playbook playbooks/db_objects.yml                  # idempotency: changed=0
 ```
 
 ## Pitfalls we actually hit
 
-| Error                                                         | Cause                                                 | Lesson                                                                                |
-| ------------------------------------------------------------- + ----------------------------------------------------- + ------------------------------------------------------------------------------------- |
-| `loop requires a list, got [[ common_firewall_ports }}` 	| Brackets instead of braces 				| Variables are `"{{ }}"`, quoted when the value starts with `{{`. Read the value after "|								 |					 		 |got". 										|
-| Assert failed with 0 healthy members under `--check` 		| The `command` module is **skipped** in check mode 	| `check_mode: false` on **read-only** tasks 						|
-| `'etcd_data_dir' is undefined` in an ad hoc command 		| Role `defaults/` only exist while the role runs 	| Test templates with the playbook: `--check --diff --limit` |
-| etcd on db1 failed: `http://IP:192.168.56.11:2380` 		| The `IP` placeholder was left in the template 	| `--check --diff` would have shown it first. **Read the diff.** |
-| `Start request repeated too quickly` 				| systemd blocks after repeated failures 		| `systemctl reset-failed etcd` before restarting |
-| Warning `ansible.posix does not support Ansible 2.14` 	| Collection newer than Rocky 9's ansible-core 		| Harmless; or install `ansible.posix:1.5.4` |
-
-**`ansible` / `ansible-playbook` always run on `ctl`**; the host in the command is the target.
-
-**`postgresql-18` disabled is correct:** Patroni manages PostgreSQL. Enabling the
-service would start the database outside Patroni at boot (split-brain risk).
-
-## Lesson questions (answer in my own words)
-
-1. Which fact holds the 192.168.56.x IP? Why doesn't `ansible_default_ipv4` work here?
-2. Why does the lab token live in `group_vars` and not in the role's `defaults/`?
-3. What would happen to Patroni if all 3 etcd members restarted at once?
-4. With `-e etcd_cluster_token=teste --check --diff`, which value won, and why?
-5. On the second run, why didn't the handler run?
-
+| Error                                                   | Cause                                             | Lesson                                         |
+| ------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| `loop requires a list, got [[ common_firewall_ports }}` | Brackets instead of braces                        | Variables are `"{{ }}"`, quoted when the value starts with `{{` |
+| Assert failed with 0 healthy members under `--check`    | The `command` module is **skipped** in check mode | `check_mode: false` on **read-only** tasks |
+| `'etcd_data_dir' is undefined` in an ad hoc command     | Role `defaults/` only exist while the role runs   | Test templates with the playbook: `--check --diff --limit` |
+| etcd on db1 failed: `http://IP:192.168.56.11:2380`      | The `IP` placeholder was left in the template     | `--check --diff` would have shown it first. **Read the diff.** |
+| `Start request repeated too quickly`                    | systemd blocks after repeated failures            | `systemctl reset-failed etcd` before restarting |
+| Warning `ansible.posix does not support Ansible 2.14`   | Collection newer than Rocky 9's ansible-core      | Harmless; or install `ansible.posix:1.5.4` |
+| Variables in `group_vars/` not loaded                   | `group_vars/` in the wrong directory              | `group_vars/` must sit next to the inventory or the playbook |
+| `'pg_version' is undefined`                             | The role's `defaults` directory was misnamed      | Role directory names are fixed: `defaults/main.yml` |
+| Database down after reboot                              | `postgresql-18` service enabled under Patroni     | Keep `postgresql-18` **disabled**: Patroni starts PostgreSQL |
+|
