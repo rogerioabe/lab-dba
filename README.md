@@ -1,8 +1,6 @@
-# Lab DBA — PostgreSQL HA as code
+# PostgreSQL 18 high availability and recovery as code: Patroni, etcd, HAProxy, pgBackRest PITR and Ansible
 
-Hands-on lab of a senior Oracle DBA moving into PostgreSQL infrastructure: a 3-node
-PostgreSQL 18 cluster with Patroni, etcd and HAProxy, built and operated as code with
-Ansible. Each lesson keeps its own notes, SQL and lab log.
+A reproducible lab to build, test and prove PostgreSQL high availability and recovery
 
 ## Architecture
 
