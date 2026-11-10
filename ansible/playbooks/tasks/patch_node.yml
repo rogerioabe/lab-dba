@@ -1,0 +1,23 @@
+---
+# Runs on ONE node that is a replica at this moment.
+- name: Update PostgreSQL 18 packages
+  ansible.builtin.dnf:
+    name: "postgresql18*"
+    state: latest
+    update_only: true
+  register: _pkgs
+
+- name: Restart PostgreSQL through Patroni
+  ansible.builtin.command: >
+    patronictl -c /etc/patroni/patroni.yml restart {{ patroni_scope }} {{ inventory_hostname }} --force
+  become_user: postgres
+  when: _pkgs.changed or (force_restart | default(false) | bool)
+
+- name: Wait until this node is a running replica again
+  ansible.builtin.uri:
+    url: "http://{{ ansible_host }}:8008/replica"
+    status_code: 200
+  register: _replica
+  until: _replica.status == 200
+  retries: 30
+  delay: 2

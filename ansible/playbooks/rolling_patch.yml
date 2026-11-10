@@ -1,0 +1,56 @@
+---
+- name: Find the Patroni leader
+  hosts: postgres
+  gather_facts: false
+  tasks:
+    - name: Ask Patroni if this node is the primary
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:8008/primary"
+        status_code: [200, 503]
+      register: _primary
+
+    - name: Group nodes by role (patroni_primary or patroni_replica)
+      ansible.builtin.group_by:
+        key: "patroni_{{ 'primary' if _primary.status == 200 else 'replica' }}"
+
+- name: Patch the replicas, one at a time
+  hosts: patroni_replica
+  serial: 1
+  gather_facts: false
+  tasks:
+    - name: Patch and restart this replica
+      ansible.builtin.include_tasks: tasks/patch_node.yml
+
+- name: Switch over, then patch the old leader
+  hosts: patroni_primary
+  gather_facts: false
+  tasks:
+    - name: Check for pending PostgreSQL updates
+      ansible.builtin.command: timeout 300 dnf -y -q list --upgrades 'postgresql18*'
+      register: _updates
+      changed_when: false
+      failed_when: _updates.rc not in [0, 1]
+
+    - name: Move the leader role to a replica
+      ansible.builtin.command: >
+        patronictl -c /etc/patroni/patroni.yml switchover {{ patroni_scope }}
+        --leader {{ inventory_hostname }} --force
+      become_user: postgres
+      when: _updates.rc == 0 or (force_restart | default(false) | bool)
+
+    - name: Wait until the old leader is a replica
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:8008/replica"
+        status_code: 200
+      register: _replica
+      until: _replica.status == 200
+      retries: 30
+      delay: 2
+      when: _updates.rc == 0 or (force_restart | default(false) | bool)
+
+    - name: Patch and restart the old leader
+      ansible.builtin.include_tasks: tasks/patch_node.yml
+      when: _updates.rc == 0 or (force_restart | default(false) | bool)
+
+- name: Validate the cluster
+  ansible.builtin.import_playbook: validate.yml

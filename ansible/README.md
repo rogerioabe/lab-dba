@@ -27,8 +27,10 @@ ansible/
 ├── playbooks/
 │   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validate.yml
 │   ├── cluster.yml               # Patroni one node at a time (serial: 1) -> HAProxy + psql client on ctl
-│   ├── validate.yml               # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
-│   └── db_objects.yml            # databases, users and privileges as code
+│   ├── validate.yml              # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
+│   ├── db_objects.yml            # databases, users and privileges as code
+│   ├── rolling_patch.yml         # day-2: patch replicas one by one, switchover, patch the old leader
+│   └── tasks/patch_node.yml      # update packages + restart through Patroni + wait for replica
 ├── roles/
 │   ├── common/                   # OS baseline: EPEL, packages, firewalld, ports
 │   ├── etcd/                     # install, per-node etcd.conf, controlled restart
@@ -192,3 +194,19 @@ ansible-playbook playbooks/db_objects.yml                  # idempotency: change
 | `'pg_version' is undefined`                             | The role's `defaults` directory was misnamed      | Role directory names are fixed: `defaults/main.yml` |
 | Database down after reboot                              | `postgresql-18` service enabled under Patroni     | Keep `postgresql-18` **disabled**: Patroni starts PostgreSQL |
 |
+
+## Day-2 operations: rolling patch (`rolling_patch.yml`)
+
+1. Asks the Patroni REST API (port 8008, `/primary`) which node leads, and groups the
+   nodes with `group_by` (`patroni_primary`, `patroni_replica`).
+2. Patches the replicas one at a time (`serial: 1`): `dnf` update, restart through
+   `patronictl restart`, wait until `/replica` answers 200.
+3. Switches the leader over to a patched replica, then patches the old leader.
+4. Runs `validate.yml`.
+
+Idempotent: with no pending updates there is no restart and no switchover.
+
+```bash
+ansible-playbook playbooks/rolling_patch.yml                         # patch if updates exist
+ansible-playbook playbooks/rolling_patch.yml -e force_restart=true   # rolling restart only
+```
