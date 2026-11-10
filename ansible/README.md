@@ -193,7 +193,10 @@ ansible-playbook playbooks/db_objects.yml                  # idempotency: change
 | Variables in `group_vars/` not loaded                   | `group_vars/` in the wrong directory              | `group_vars/` must sit next to the inventory or the playbook |
 | `'pg_version' is undefined`                             | The role's `defaults` directory was misnamed      | Role directory names are fixed: `defaults/main.yml` |
 | Database down after reboot                              | `postgresql-18` service enabled under Patroni     | Keep `postgresql-18` **disabled**: Patroni starts PostgreSQL |
-|
+| `404` on `rhel-9_major.9_minor-x86_64`                  | A `replace` of `$releasever` also hit `$releasever_major` and `$releasever_minor` | Replace the whole segment: regex `(redhat/rhel-)[^/]+?(-\$basearch)` -> `rhel-9` |
+| `nothing provides perl(IPC::Run) needed by postgresql18-devel` | `dnf` with `name: postgresql18*` and `state: latest` installs every matching package | Add `update_only: true` to update only installed packages |
+| Playbook stuck on a `dnf` command | `dnf` waits for "Importing GPG key ... Is this ok" (repo metadata key, `repo_gpgcheck`) | `rpm_key` covers packages only; run `dnf -y makecache` once, use `-y` and `timeout 300` in `command` tasks |
+| `dnf` looks frozen | `-q` hides progress; first metadata download after `clean` takes minutes | Check `pgrep -a dnf` and `tail /var/log/dnf.log` on the node before interrupting |
 
 ## Day-2 operations: rolling patch (`rolling_patch.yml`)
 
