@@ -1,6 +1,28 @@
-# PostgreSQL 18 high availability and recovery as code: Patroni, etcd, HAProxy, pgBackRest PITR and Ansible
+# PostgreSQL 18 HA Lab — Patroni, etcd and HAProxy as code with Ansible
 
-A reproducible lab to build, test and prove PostgreSQL high availability and recovery
+A reproducible 3-node PostgreSQL 18 cluster that rebuilds from scratch with one command,
+plus hands-on labs on backup, PITR with pgBackRest, and replication.
+
+## Highlights
+
+- **One-command rebuild:** `ansible-playbook playbooks/site.yml` builds etcd, Patroni and HAProxy
+  from empty VMs and validates the result (1 leader + 2 streaming replicas, routing on 5000/5001).
+- **Idempotent by design:** every playbook reports `changed=0` on a second run.
+- **Secrets handled properly:** passwords live only in Ansible Vault, behind plain aliases.
+- **Databases, users and privileges as code** with `community.postgresql`.
+- **Failure drills:** automatic failover, switchover, replica rejoin with pg_rewind,
+  and point-in-time recovery after an accidental DROP.
+
+## Coming from Oracle
+
+| Oracle | PostgreSQL in this lab |
+| ------ | ---------------------- |
+| Data Guard + Fast-Start Failover | Streaming replication + Patroni + etcd |
+| Observer | etcd quorum (3 nodes) |
+| SCAN listener / service | HAProxy (5000 = primary, 5001 = replicas) |
+| RMAN + archived redo | pgBackRest + WAL archiving |
+| Flashback / point-in-time recovery | PITR with recovery_target_time |
+| Undo tablespace | MVCC row versions + VACUUM |
 
 ## Architecture
 
