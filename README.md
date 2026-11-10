@@ -10,6 +10,8 @@ plus hands-on labs on backup, PITR with pgBackRest, and replication.
 - **Idempotent by design:** every playbook reports `changed=0` on a second run.
 - **Secrets handled properly:** passwords live only in Ansible Vault, behind plain aliases.
 - **Databases, users and privileges as code** with `community.postgresql`.
+- **Rolling patch:** patched the cluster to PostgreSQL 18.6 node by node (replicas first,
+  then a Patroni switchover), with writes paused only during the switchover.
 - **Failure drills:** automatic failover, switchover, replica rejoin with pg_rewind,
   and point-in-time recovery after an accidental DROP.
 
@@ -55,7 +57,7 @@ flowchart LR
 - Physical and logical replication, failover and switchover
 - High availability with Patroni, etcd and HAProxy
 - Infrastructure as code with Ansible: roles, templates, handlers, Ansible Vault,
-  `community.postgresql`, idempotent playbooks
+  `community.postgresql`, idempotent playbooks, rolling patching with `serial: 1`
 
 ## Repository map
 
@@ -71,6 +73,9 @@ flowchart LR
 | [`postgresql/07-replication`](postgresql/07-replication/) | Streaming replication, slots, failover |
 | [`postgresql/08-logical-replica-patroni`](postgresql/08-logical-replica-patroni/) | Logical replication, Patroni |
 | [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
+| [`ansible/roles/`](ansible/roles/) | `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
+| [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover) |
+| [`ansible/inventory/`](ansible/inventory/) | Hosts, groups, `vars.yml` and the encrypted `vault.yml` |
 
 ## How to reproduce
 
@@ -86,11 +91,12 @@ ansible-galaxy collection install -r requirements.yml
 echo 'your-vault-password' > ~/.vault_pass && chmod 0600 ~/.vault_pass
 ansible-playbook playbooks/site.yml          # etcd + Patroni + HAProxy + validation
 ansible-playbook playbooks/db_objects.yml    # databases, users and privileges
+ansible-playbook playbooks/rolling_patch.yml # day-2: rolling minor-version patch
 ```
 
 ## Roadmap
 
-- Ansible day-2 operations: rolling restart and node-by-node patching with switchover
+- Ansible: password rotation with rolling restart, ansible-lint in CI
 - Terraform and AWS (RDS and Aurora PostgreSQL)
 - Oracle to PostgreSQL migration with AWS SCT and DMS
 - PostgreSQL on Kubernetes with CloudNativePG
