@@ -7,8 +7,9 @@ plus hands-on labs on backup, PITR with pgBackRest, and replication.
 
 - **One-command rebuild:** `ansible-playbook playbooks/site.yml` builds etcd, Patroni and HAProxy
   from empty VMs and validates the result (1 leader + 2 streaming replicas, routing on 5000/5001).
-- **Idempotent by design:** every playbook reports `changed=0` on a second run.
-- **Secrets handled properly:** passwords live only in Ansible Vault, behind plain aliases.
+- **Idempotent by design:** the build and configuration playbooks report `changed=0` on a second run.
+- **Secrets handled properly:** passwords live only in Ansible Vault, behind plain aliases,
+  and are rotated by a playbook without restarting PostgreSQL or changing the leader.
 - **Databases, users and privileges as code** with `community.postgresql`.
 - **Rolling patch:** patched the cluster to PostgreSQL 18.6 node by node (replicas first,
   then a Patroni switchover), with writes paused only during the switchover.
@@ -74,7 +75,7 @@ flowchart LR
 | [`postgresql/08-logical-replica-patroni`](postgresql/08-logical-replica-patroni/) | Logical replication, Patroni |
 | [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
 | [`ansible/roles/`](ansible/roles/) | `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
-| [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover) |
+| [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover), `rotate_passwords.yml` (password rotation, Patroni reload only) |
 | [`ansible/inventory/`](ansible/inventory/) | Hosts, groups, `vars.yml` and the encrypted `vault.yml` |
 
 ## How to reproduce
@@ -92,11 +93,12 @@ echo 'your-vault-password' > ~/.vault_pass && chmod 0600 ~/.vault_pass
 ansible-playbook playbooks/site.yml          # etcd + Patroni + HAProxy + validation
 ansible-playbook playbooks/db_objects.yml    # databases, users and privileges
 ansible-playbook playbooks/rolling_patch.yml # day-2: rolling minor-version patch
+ansible-playbook playbooks/rotate_passwords.yml # day-2: rotate postgres and replication passwords
 ```
 
 ## Roadmap
 
-- Ansible: password rotation with rolling restart, ansible-lint in CI
+- Ansible: ansible-lint in CI and a shared role for the PGDG repository
 - Terraform and AWS (RDS and Aurora PostgreSQL)
 - Oracle to PostgreSQL migration with AWS SCT and DMS
 - PostgreSQL on Kubernetes with CloudNativePG
