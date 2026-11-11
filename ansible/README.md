@@ -213,3 +213,24 @@ Idempotent: with no pending updates there is no restart and no switchover.
 ansible-playbook playbooks/rolling_patch.yml                         # patch if updates exist
 ansible-playbook playbooks/rolling_patch.yml -e force_restart=true   # rolling restart only
 ```
+
+## Day-2 operations: password rotation (`rotate_passwords.yml`)
+
+1. Change the values in `vault.yml` (`vault_patroni_superuser_password`,
+   `vault_patroni_replication_password`).
+2. The playbook finds the leader and runs `ALTER ROLE` there with `community.postgresql`,
+   connecting through the local socket as the OS user `postgres` (`peer`), so the old
+   password is not needed.
+3. It imports `cluster.yml`: the template writes the new passwords to `patroni.yml` and the
+   handler **reloads** Patroni, one node at a time. No restart, no leader change.
+4. It imports `validate.yml`, which connects with the new password through HAProxy.
+
+Order matters: database first, Patroni second. Existing sessions and streaming
+connections stay up; new connections use the new password.
+
+```bash
+ansible-vault edit inventory/group_vars/postgres/vault.yml
+ansible-playbook playbooks/rotate_passwords.yml
+```
+
+After rotating, update `~/.pgpass` on `ctl`.
