@@ -48,6 +48,8 @@ postgresql:
   pg_hba:
     - local all all peer
     - host replication {{ patroni_replication_user }} {{ patroni_allowed_network }} scram-sha-256
+    - host replication {{ patroni_replication_user }} 127.0.0.1/32 scram-sha-256
+    - host replication {{ patroni_replication_user }} ::1/128 scram-sha-256
     - host all all {{ patroni_allowed_network }} scram-sha-256
     - host all all 127.0.0.1/32 scram-sha-256
   parameters:
