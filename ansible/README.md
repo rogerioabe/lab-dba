@@ -22,7 +22,7 @@ ansible/
 │       ├── all.yml               # base packages and cluster ports
 │       ├── etcd.yml              # etcd cluster token for the lab
 │       └── postgres/
-│           ├── vars.yml          # plain values: users and databases lists, aliases to secrets
+│           ├── vars.yml          # plain values: pg_users / pg_databases lists, aliases to secrets
 │           └── vault.yml         # secrets only, encrypted with Ansible Vault
 ├── playbooks/
 │   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validate.yml
@@ -30,13 +30,16 @@ ansible/
 │   ├── validate.yml              # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
 │   ├── db_objects.yml            # databases, users and privileges as code
 │   ├── rolling_patch.yml         # day-2: patch replicas one by one, switchover, patch the old leader
-│   └── tasks/patch_node.yml      # update packages + restart through Patroni + wait for replica
+│   ├── rotate_passwords.yml      # day-2: ALTER ROLE on the leader, then patroni.yml + Patroni reload
+│   └── tasks/
+│       └── patch_node.yml        # update packages + restart through Patroni + wait for replica
 ├── roles/
-│   ├── common/                   # OS baseline: EPEL, packages, firewalld, ports
+│   ├── common/                   # OS baseline: EPEL, PGDG repo (pinned to EL9, GPG keys), packages, firewalld
 │   ├── etcd/                     # install, per-node etcd.conf, controlled restart
-│   ├── patroni_cluster/          # PostgreSQL 18 + Patroni, patroni.yml per node
+│   ├── patroni_cluster/          # PostgreSQL 18 + Patroni, patroni.yml per node (pg_hba incl. local replication)
 │   ├── haproxy/                  # HAProxy on ctl: 5000 -> primary, 5001 -> replicas
-│   └── pg_client/                # psql client on ctl
+│   └── pg_client/                # PGDG repo fixes + psql client, on the db nodes and on ctl
+├── notes/                        # lesson notes and questions (lab-notes.md, PERGUNTAS.md, ...)
 └── legacy/                       # week 1 files (inventario.ini, pg-binarios.yml)
 ```
 
