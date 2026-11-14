@@ -1,4 +1,3 @@
-cat > README.md <<'EOF'
 # PostgreSQL 18 HA Lab — Patroni, etcd and HAProxy as code with Ansible
 
 A reproducible 3-node PostgreSQL 18 cluster that rebuilds from scratch with one command,
@@ -110,5 +109,4 @@ ansible-playbook playbooks/rotate_passwords.yml # day-2: rotate postgres and rep
 - Oracle to PostgreSQL migration with AWS SCT and DMS
 - PostgreSQL on Kubernetes with CloudNativePG
 - AI workloads on PostgreSQL with pgvector
-EOF
 
