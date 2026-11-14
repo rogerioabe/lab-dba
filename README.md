@@ -54,6 +54,7 @@ flowchart LR
 | db2 | 192.168.56.12 | PostgreSQL 18 + Patroni + etcd                         |
 | db3 | 192.168.56.13 | PostgreSQL 18 + Patroni + etcd                         |
 | ctl | 192.168.56.10 | Ansible control node, HAProxy, psql client             |
+| ai  | 192.168.56.20 | Standalone AI lab: PostgreSQL 18, pgvector, Ollama (runs with the cluster off) |
 
 ## Skills shown
 
@@ -78,6 +79,7 @@ flowchart LR
 | [`postgresql/06-restore-pitr`](postgresql/06-restore-pitr/) | Restore, PITR, pgBackRest |
 | [`postgresql/07-replication`](postgresql/07-replication/) | Streaming replication, slots, failover |
 | [`postgresql/08-logical-replica-patroni`](postgresql/08-logical-replica-patroni/) | Logical replication, Patroni |
+| [`ai/01-embeddings`](ai/01-embeddings/) | Embeddings with a local model (Ollama) and semantic search in plain SQL |
 | [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
 | [`ansible/roles/`](ansible/roles/) | `pgdg_repo`, `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
 | [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover), `rotate_passwords.yml` (password rotation, Patroni reload only) |

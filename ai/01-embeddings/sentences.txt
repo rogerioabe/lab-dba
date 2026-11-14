@@ -1,0 +1,8 @@
+PostgreSQL uses MVCC to keep old row versions.
+VACUUM removes dead tuples from a table.
+Patroni promotes a replica when the primary fails.
+Streaming replication sends WAL to standby servers.
+My cat sleeps all day on the sofa.
+The dog chased the ball in the park.
+Bananas are rich in potassium.
+I had pasta with tomato sauce for dinner.
