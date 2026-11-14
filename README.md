@@ -1,3 +1,4 @@
+cat > README.md <<'EOF'
 # PostgreSQL 18 HA Lab — Patroni, etcd and HAProxy as code with Ansible
 
 A reproducible 3-node PostgreSQL 18 cluster that rebuilds from scratch with one command,
@@ -10,7 +11,11 @@ plus hands-on labs on backup, PITR with pgBackRest, and replication.
 - **Idempotent by design:** the build and configuration playbooks report `changed=0` on a second run.
 - **Secrets handled properly:** passwords live only in Ansible Vault, behind plain aliases,
   and are rotated by a playbook without restarting PostgreSQL or changing the leader.
-- **Databases, users and privileges as code** with `community.postgresql`.
+- **Databases, users and privileges as code** with `community.postgresql`, including
+  default privileges so that new tables are readable without another run.
+- **Linted and pinned:** the Ansible project passes `ansible-lint` with the `production`
+  profile, shared tasks live in a `pgdg_repo` role used through role dependencies, and
+  collection versions are pinned in `requirements.yml`.
 - **Rolling patch:** patched the cluster to PostgreSQL 18.6 node by node (replicas first,
   then a Patroni switchover), with writes paused only during the switchover.
 - **Failure drills:** automatic failover, switchover, replica rejoin with pg_rewind,
@@ -74,7 +79,7 @@ flowchart LR
 | [`postgresql/07-replication`](postgresql/07-replication/) | Streaming replication, slots, failover |
 | [`postgresql/08-logical-replica-patroni`](postgresql/08-logical-replica-patroni/) | Logical replication, Patroni |
 | [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
-| [`ansible/roles/`](ansible/roles/) | `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
+| [`ansible/roles/`](ansible/roles/) | `pgdg_repo`, `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
 | [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover), `rotate_passwords.yml` (password rotation, Patroni reload only) |
 | [`ansible/inventory/`](ansible/inventory/) | Hosts, groups, `vars.yml` and the encrypted `vault.yml` |
 
@@ -98,8 +103,10 @@ ansible-playbook playbooks/rotate_passwords.yml # day-2: rotate postgres and rep
 
 ## Roadmap
 
-- Ansible: ansible-lint in CI and a shared role for the PGDG repository
+- Ansible: run ansible-lint in CI (GitHub Actions) on every push
 - Terraform and AWS (RDS and Aurora PostgreSQL)
 - Oracle to PostgreSQL migration with AWS SCT and DMS
 - PostgreSQL on Kubernetes with CloudNativePG
 - AI workloads on PostgreSQL with pgvector
+EOF
+

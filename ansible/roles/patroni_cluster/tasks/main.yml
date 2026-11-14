@@ -45,6 +45,6 @@
     url: "http://{{ ansible_host }}:{{ patroni_api_port }}/health"
   register: _result
   until: _result.status == 200
-  retries: 30 
+  retries: 30
   delay: 10
   check_mode: false

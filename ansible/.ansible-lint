@@ -1,0 +1,8 @@
+---
+offline: true
+exclude_paths:
+  - legacy/
+  - notes/
+skip_list:
+  - var-naming[no-role-prefix]  # pg_version, patroni_* are shared by several roles and the inventory
+  - run-once[task]              # this project never uses strategy: free

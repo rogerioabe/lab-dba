@@ -10,7 +10,9 @@
 - name: Restart PostgreSQL through Patroni
   ansible.builtin.command: >
     patronictl -c /etc/patroni/patroni.yml restart {{ patroni_scope }} {{ inventory_hostname }} --force
+  become: true
   become_user: postgres
+  changed_when: true
   when: _pkgs.changed or (force_restart | default(false) | bool)
 
 - name: Wait until this node is a running replica again

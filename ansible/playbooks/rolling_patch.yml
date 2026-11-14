@@ -35,7 +35,9 @@
       ansible.builtin.command: >
         patronictl -c /etc/patroni/patroni.yml switchover {{ patroni_scope }}
         --leader {{ inventory_hostname }} --force
+      become: true
       become_user: postgres
+      changed_when: true
       when: _updates.rc == 0 or (force_restart | default(false) | bool)
 
     - name: Wait until the old leader is a replica

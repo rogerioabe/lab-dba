@@ -1,0 +1,26 @@
+---
+- name: Install the PGDG repository package
+  ansible.builtin.dnf:
+    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    state: present
+    disable_gpg_check: true
+
+- name: Pin the PGDG repository to EL9 (avoid 404 on 9.x minor releases)
+  ansible.builtin.replace:
+    path: /etc/yum.repos.d/pgdg-redhat-all.repo
+    regexp: '(redhat/rhel-)[^/]+?(-\$basearch)'
+    replace: '\g<1>9\g<2>'
+
+- name: Import the PGDG GPG key (avoid an interactive prompt in dnf)
+  ansible.builtin.rpm_key:
+    key: /etc/pki/rpm-gpg/PGDG-RPM-GPG-KEY-RHEL
+    state: present
+
+- name: Accept the PGDG repository metadata keys (repo_gpgcheck)
+  ansible.builtin.command: timeout 300 dnf -y makecache
+  changed_when: false
+
+- name: Disable the Rocky postgresql module
+  ansible.builtin.command: dnf -qy module disable postgresql
+  register: pgdg_repo_module
+  changed_when: "'Disabling' in pgdg_repo_module.stdout"

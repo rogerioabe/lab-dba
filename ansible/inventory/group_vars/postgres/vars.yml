@@ -15,3 +15,29 @@ pg_users:
 pg_databases:
   - name: appdb
     owner: app_user
+
+# Privileges for each role, applied by db_objects.yml (one item = one GRANT).
+pg_privileges:
+  - db: appdb
+    type: database
+    objs: appdb
+    privs: CONNECT
+    roles: app_ro
+  - db: appdb
+    type: schema
+    objs: public
+    privs: USAGE
+    roles: app_ro
+  - db: appdb
+    type: table
+    objs: ALL_IN_SCHEMA
+    schema: public
+    privs: SELECT
+    roles: app_ro
+  - db: appdb
+    type: default_privs
+    objs: TABLES
+    schema: public
+    privs: SELECT
+    roles: app_ro
+    target_roles: app_user

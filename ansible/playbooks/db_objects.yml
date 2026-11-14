@@ -3,7 +3,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  vars_files: 
+  vars_files:
     - ../inventory/group_vars/postgres/vault.yml
     - ../inventory/group_vars/postgres/vars.yml
 
@@ -35,39 +35,19 @@
         login_password: "{{ postgres_password }}"
       loop: "{{ pg_databases }}"
 
-    - name: GRANT CONNECT on appdb to app_ro
+    - name: Grant privileges from pg_privileges
       community.postgresql.postgresql_privs:
-        login_db: appdb
-        type: database
-        objs: appdb
-        privs: CONNECT
-        roles: app_ro
+        login_db: "{{ item.db }}"
+        type: "{{ item.type }}"
+        objs: "{{ item.objs }}"
+        schema: "{{ item.schema | default(omit) }}"
+        privs: "{{ item.privs }}"
+        roles: "{{ item.roles }}"
+        target_roles: "{{ item.target_roles | default(omit) }}"
         login_host: "{{ pg_host }}"
         login_port: "{{ pg_port }}"
         login_user: postgres
         login_password: "{{ postgres_password }}"
-
-    - name: GRANT USAGE on schema public TO app_ro
-      community.postgresql.postgresql_privs:
-        login_db: appdb
-        type: schema
-        objs: public
-        privs: USAGE
-        roles: app_ro
-        login_host: "{{ pg_host }}"
-        login_port: "{{ pg_port }}"
-        login_user: postgres
-        login_password: "{{ postgres_password }}"
-
-    - name: GRANT SELECT ALL TABLE in schema public TO app_ro
-      community.postgresql.postgresql_privs:
-        login_db: appdb
-        type: table
-        objs: ALL_IN_SCHEMA
-        schema: public
-        privs: SELECT
-        roles: app_ro
-        login_host: "{{ pg_host }}"
-        login_port: "{{ pg_port }}"
-        login_user: postgres
-        login_password: "{{ postgres_password }}"
+      loop: "{{ pg_privileges }}"
+      loop_control:
+        label: "{{ item.db }}: {{ item.privs }} on {{ item.type }} {{ item.objs }} to {{ item.roles }}"

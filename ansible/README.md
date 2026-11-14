@@ -1,28 +1,31 @@
+cat > README.md <<'EOF'
 # Ansible — PostgreSQL HA lab as code
 
 Lab automation with Ansible: the OS baseline, the etcd cluster, Patroni, HAProxy and the
 database objects (databases, users, privileges) of the 3-node PostgreSQL 18 cluster are
 managed as code from the `ctl` node.
 
-> **Status (lesson 12, in progress):** the whole cluster (etcd + Patroni + HAProxy) was
-> destroyed and rebuilt from scratch with one playbook, `site.yml`, which imports
-> `cluster.yml` and `validate.yml`. Secrets live in Ansible Vault. Databases, users and privileges are
-> created by `db_objects.yml` with `community.postgresql`. Next: rolling restart and
-> node-by-node patching with switchover.
+> **Status (lesson 12, done):** the whole cluster (etcd + Patroni + HAProxy) is built from
+> scratch by one playbook, `site.yml`. Secrets live in Ansible Vault. Databases, users and
+> privileges (including default privileges for future tables) are code in `db_objects.yml`.
+> Day-2 playbooks patch the cluster node by node and rotate passwords without a restart.
+> The project passes `ansible-lint` with the `production` profile, and collection versions
+> are pinned. Next: Terraform.
 
 ## Project layout
 
 ```
 ansible/
 ├── ansible.cfg                   # how to connect: inventory, user, sudo, vault password file
-├── requirements.yml              # collections the project needs (community.postgresql)
+├── .ansible-lint                 # lint rules: excluded folders and skipped rules (with the reason)
+├── requirements.yml              # collections the project needs, with pinned versions
 ├── inventory/
 │   ├── hosts.yml                 # where: postgres (db1-db3), etcd (children: postgres), haproxy (ctl, local connection)
 │   └── group_vars/
 │       ├── all.yml               # base packages and cluster ports
 │       ├── etcd.yml              # etcd cluster token for the lab
 │       └── postgres/
-│           ├── vars.yml          # plain values: pg_users / pg_databases lists, aliases to secrets
+│           ├── vars.yml          # plain values: pg_users / pg_databases / pg_privileges lists, aliases to secrets
 │           └── vault.yml         # secrets only, encrypted with Ansible Vault
 ├── playbooks/
 │   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validate.yml
@@ -34,11 +37,12 @@ ansible/
 │   └── tasks/
 │       └── patch_node.yml        # update packages + restart through Patroni + wait for replica
 ├── roles/
-│   ├── common/                   # OS baseline: EPEL, PGDG repo (pinned to EL9, GPG keys), packages, firewalld
+│   ├── pgdg_repo/                # PGDG repository: package, pin to EL9, GPG keys, Rocky module off
+│   ├── common/                   # OS baseline: EPEL, packages, firewalld (depends on pgdg_repo)
 │   ├── etcd/                     # install, per-node etcd.conf, controlled restart
 │   ├── patroni_cluster/          # PostgreSQL 18 + Patroni, patroni.yml per node (pg_hba incl. local replication)
 │   ├── haproxy/                  # HAProxy on ctl: 5000 -> primary, 5001 -> replicas
-│   └── pg_client/                # PGDG repo fixes + psql client, on the db nodes and on ctl
+│   └── pg_client/                # psql client, on the db nodes and on ctl (depends on pgdg_repo)
 ├── notes/                        # lesson notes and questions (lab-notes.md, PERGUNTAS.md, ...)
 └── legacy/                       # week 1 files (inventario.ini, pg-binarios.yml)
 ```
@@ -68,7 +72,7 @@ Data, logic and secrets are kept apart:
 | File                                   | Holds                                            | Encrypted |
 | -------------------------------------- | ------------------------------------------------ | --------- |
 | `inventory/group_vars/postgres/vault.yml` | Secrets only (`vault_*` variables)            | Yes       |
-| `inventory/group_vars/postgres/vars.yml`  | Lists of users and databases, plain aliases   | No        |
+| `inventory/group_vars/postgres/vars.yml`  | Lists of users, databases and privileges, plain aliases | No |
 | `playbooks/*.yml`                      | Logic only: what to do with each item            | No        |
 
 **Alias pattern.** `vars.yml` exposes each secret under a plain name, and the playbooks use
@@ -100,8 +104,13 @@ The vault password file (`~/.vault_pass`, mode 0600) lives outside the repositor
   apply only to hosts of the `postgres` group, not to `localhost`).
 - Users and databases come from the `pg_users` and `pg_databases` lists in `vars.yml`
   (`loop`). Adding a user = adding two lines to `vars.yml`.
-- Privileges follow the 3 layers: `CONNECT` on the database, `USAGE` on the schema,
-  `SELECT` on the tables (`ALL_IN_SCHEMA` covers existing tables only).
+- Privileges come from the `pg_privileges` list in `vars.yml`: one item = one GRANT, applied
+  by a single `postgresql_privs` task. They follow the 3 layers: `CONNECT` on the database,
+  `USAGE` on the schema, `SELECT` on the tables.
+- `ALL_IN_SCHEMA` covers only the tables that exist when the playbook runs. The
+  `default_privs` item (`ALTER DEFAULT PRIVILEGES FOR ROLE app_user IN SCHEMA public GRANT
+  SELECT ON TABLES TO app_ro`) covers the tables `app_user` creates later, with no new run.
+  It applies only to objects created by the role in `target_roles`.
 - `no_password_changes: true` writes a password only when the user is created, so a
   second run reports `changed=0` (passwords are stored as SCRAM hashes).
 - `no_log: true` hides secrets, and also the error message: comment it out while debugging.
@@ -109,8 +118,8 @@ The vault password file (`~/.vault_pass`, mode 0600) lives outside the repositor
 Prerequisites on ctl:
 
 ```bash
-ansible-galaxy collection install -r requirements.yml
-sudo dnf install -y python3-psycopg2 --disablerepo='pgdg*'
+ansible-galaxy collection install -r requirements.yml   # pinned versions
+sudo dnf install -y python3-psycopg2
 ```
 
 ## Key concepts
@@ -142,6 +151,22 @@ sudo dnf install -y python3-psycopg2 --disablerepo='pgdg*'
 | `defaults/`  | Default values, meant to be overridden                               |
 | `vars/`      | Internal values, high precedence                                     |
 | `meta/`      | Metadata and dependencies                                            |
+
+**Role dependencies (`meta/main.yml`).** `common` and `pg_client` both need the PGDG
+repository, so they declare `pgdg_repo` as a dependency instead of repeating its tasks.
+Ansible runs the dependency first, once per play. The dependency is tagged `pgdg`, so
+`--tags pgdg` runs only the repository tasks.
+
+```yaml
+dependencies:
+  - role: pgdg_repo
+    tags: pgdg
+```
+
+**ansible-lint.** Checks the project against Ansible best practices: YAML formatting,
+task names, FQCN module names, `changed_when` on commands, `become` next to `become_user`.
+It runs from a Python 3.11 virtualenv on ctl, so the system Ansible is not touched.
+`.ansible-lint` excludes `legacy/` and `notes/` and skips two rules, each with its reason.
 
 **etcd template.** `ETCD_INITIAL_CLUSTER` is generated from the inventory
 (`groups['etcd']` + `hostvars[h]['ansible_host']` + `loop.last` for the comma).
@@ -177,6 +202,9 @@ ansible-playbook playbooks/site.yml --tags validar      # etcd validation only
 ansible-playbook playbooks/cluster.yml                  # Patroni (serial: 1) + HAProxy
 ansible-playbook playbooks/validate.yml                  # cluster and routing check
 
+# Code quality
+~/venvs/lint/bin/ansible-lint                           # expect: Passed ... profile 'production'
+
 # Databases, users and privileges
 ansible-playbook playbooks/db_objects.yml --check --diff   # privilege tasks fail on the first preview (database not created yet)
 ansible-playbook playbooks/db_objects.yml
@@ -199,6 +227,9 @@ ansible-playbook playbooks/db_objects.yml                  # idempotency: change
 | `404` on `rhel-9_major.9_minor-x86_64`                  | A `replace` of `$releasever` also hit `$releasever_major` and `$releasever_minor` | Replace the whole segment: regex `(redhat/rhel-)[^/]+?(-\$basearch)` -> `rhel-9` |
 | `nothing provides perl(IPC::Run) needed by postgresql18-devel` | `dnf` with `name: postgresql18*` and `state: latest` installs every matching package | Add `update_only: true` to update only installed packages |
 | Playbook stuck on a `dnf` command | `dnf` waits for "Importing GPG key ... Is this ok" (repo metadata key, `repo_gpgcheck`) | `rpm_key` covers packages only; run `dnf -y makecache` once, use `-y` and `timeout 300` in `command` tasks |
+| `partial-become`: `become_user` without `become` | Worked only because `ansible.cfg` sets `become = True` | Write `become: true` next to every `become_user` |
+| `no-changed-when` on `patronictl` commands | `command` always reports a change unless told otherwise | `changed_when: true` for real actions, `changed_when: false` for read-only commands |
+| A new table is not readable by `app_ro` | `GRANT ... ON ALL TABLES IN SCHEMA` covers existing tables only | `default_privs` item with `target_roles: app_user` |
 | `dnf` looks frozen | `-q` hides progress; first metadata download after `clean` takes minutes | Check `pgrep -a dnf` and `tail /var/log/dnf.log` on the node before interrupting |
 
 ## Day-2 operations: rolling patch (`rolling_patch.yml`)
@@ -237,3 +268,4 @@ ansible-playbook playbooks/rotate_passwords.yml
 ```
 
 After rotating, update `~/.pgpass` on `ctl`.
+EOF

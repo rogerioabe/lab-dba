@@ -2,3 +2,4 @@
 .pgpass
 .vault_pass
 *.retry
+.ansible/

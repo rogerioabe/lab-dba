@@ -12,9 +12,9 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Reiniciar etcd  
+  notify: Reiniciar etcd
 
-- name: etcd habilitado e ativo
+- name: Serviço etcd habilitado e ativo
   ansible.builtin.systemd:
     name: etcd
     state: started

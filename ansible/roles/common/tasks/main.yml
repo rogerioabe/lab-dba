@@ -4,17 +4,6 @@
     name: epel-release
     state: present
 
-- name: Instalar PGDG
-  ansible.builtin.dnf:
-    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-    state: present
-    disable_gpg_check: true 
-
-- name: Desabilitar o modulo postgresql do Rocky
-  ansible.builtin.command: dnf -qy module disable postgresql
-  register: modulo
-  changed_when: "'Disabling' in modulo.stdout"
-
 - name: Instalar pacotes base
   ansible.builtin.dnf:
     name: "{{ common_packages }}"
@@ -29,25 +18,7 @@
 - name: Liberar portas do cluster
   ansible.posix.firewalld:
     port: "{{ item }}"
-    permanent:  true
+    permanent: true
     state: enabled
     immediate: true
   loop: "{{ common_firewall_ports }}"
-
-- name: Pin the PGDG repository to EL9 (avoid 404 on 9.x minor releases)
-  ansible.builtin.replace:
-    path: /etc/yum.repos.d/pgdg-redhat-all.repo
-    regexp: '(redhat/rhel-)[^/]+?(-\$basearch)'
-    replace: '\g<1>9\g<2>'
-  tags: pgdg
-
-- name: Import the PGDG GPG key (avoid an interactive prompt in dnf)
-  ansible.builtin.rpm_key:
-    key: /etc/pki/rpm-gpg/PGDG-RPM-GPG-KEY-RHEL
-    state: present
-  tags: pgdg
-
-- name: Accept the PGDG repository metadata keys (repo_gpgcheck)
-  ansible.builtin.command: timeout 300 dnf -y makecache
-  changed_when: false
-  tags: pgdg
