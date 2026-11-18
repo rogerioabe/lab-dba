@@ -41,3 +41,22 @@ psql -d aidb -f schema.sql
 | Cosine similarity | angle between two vectors: 1 = same meaning, close to 0 = unrelated |
 | Exact vs approximate search | exact (kNN) scans every row; approximate (ANN) uses an index and trades some recall for speed |
 | RAG | retrieve the closest chunks with SQL, add them to the prompt, let the LLM answer from them |
+
+## Python version (lesson 19)
+
+| File | Purpose |
+| ---- | ------- |
+| `embedding.py` | `get_embedding(text)`: calls the Ollama API with `requests` |
+| `load.py` | loads `sentences.txt` in a single transaction (all or nothing) |
+| `search.py` | ranks the sentences by cosine similarity to a question |
+| `requirements.txt` | `psycopg[binary]`, `requests` |
+
+```bash
+pip install -r requirements.txt
+python load.py
+python search.py "How does the database clean up old rows?"
+```
+
+Compared with the bash version, psycopg sends the embedding as a parameter (a Python list
+becomes a `float8[]`), and the whole load is one transaction: if Ollama fails halfway,
+nothing is half-loaded.
