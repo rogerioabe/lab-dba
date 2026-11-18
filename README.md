@@ -81,6 +81,7 @@ flowchart LR
 | [`postgresql/09-planner-indexes`](postgresql/09-planner-indexes/) | Planner, EXPLAIN ANALYZE, index types, statistics: 5 slow queries fixed |
 | [`python/01-healthcheck`](python/01-healthcheck/) | PostgreSQL health check in Python (psycopg 3) with monitoring exit codes |
 | [`ai/01-embeddings`](ai/01-embeddings/) | Embeddings with a local model (Ollama) and semantic search in plain SQL |
+| [`ai/02-pgvector`](ai/02-pgvector/) | pgvector: vector types, distance operators, migration from float8[], exact search |
 | [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
 | [`ansible/roles/`](ansible/roles/) | `pgdg_repo`, `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
 | [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover), `rotate_passwords.yml` (password rotation, Patroni reload only) |

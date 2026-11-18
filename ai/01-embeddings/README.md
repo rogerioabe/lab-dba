@@ -60,3 +60,7 @@ python search.py "How does the database clean up old rows?"
 Compared with the bash version, psycopg sends the embedding as a parameter (a Python list
 becomes a `float8[]`), and the whole load is one transaction: if Ollama fails halfway,
 nothing is half-loaded.
+
+> **Note:** lesson 02 migrates the `sentences.embedding` column to `vector(768)`. After that,
+> the scripts in this folder (which use `cosine_similarity(float8[], float8[])`) no longer
+> work; use the versions in [`ai/02-pgvector`](../02-pgvector/).
