@@ -1,0 +1,9 @@
+    [extend]
+    useDefault = true                 # keep all the built-in rules
+
+    [[rules]]
+    id = "postgres-uri-password"
+    description = "PostgreSQL connection URI with an embedded password"
+    regex = '''postgres(?:ql)?://[^:/\s]+:([^@\s]+)@'''
+    secretGroup = 1                   # the password is capture group 1
+    keywords = ["postgres"]

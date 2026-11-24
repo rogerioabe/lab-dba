@@ -80,6 +80,7 @@ flowchart LR
 | [`postgresql/08-logical-replica-patroni`](postgresql/08-logical-replica-patroni/) | Logical replication, Patroni |
 | [`postgresql/09-planner-indexes`](postgresql/09-planner-indexes/) | Planner, EXPLAIN ANALYZE, index types, statistics: 5 slow queries fixed |
 | [`postgresql/10-monitoring`](postgresql/10-monitoring/) | pg_stat_statements, auto_explain, wait events, lock incidents (row, DDL queue, deadlock) |
+| [`postgresql/11-security`](postgresql/11-security) | TLS, pg_hba, least privilege, RLS on vectors, pgaudit, gitleaks |
 | [`python/01-healthcheck`](python/01-healthcheck/) | PostgreSQL health check in Python (psycopg 3) with monitoring exit codes |
 | [`ai/01-embeddings`](ai/01-embeddings/) | Embeddings with a local model (Ollama) and semantic search in plain SQL |
 | [`ai/02-pgvector`](ai/02-pgvector/) | pgvector: vector types, distance operators, migration from float8[], exact search |
