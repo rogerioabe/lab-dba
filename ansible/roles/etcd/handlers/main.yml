@@ -1,4 +1,8 @@
 ---
+- name: Recarregar systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
 - name: Reiniciar etcd
   ansible.builtin.systemd:
     name: etcd

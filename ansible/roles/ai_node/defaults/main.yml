@@ -1,0 +1,9 @@
+---
+pg_version: 18
+pg_data_dir: "/var/lib/pgsql/{{ pg_version }}/data"
+pg_bin_dir: "/usr/pgsql-{{ pg_version }}/bin"
+ai_node_admin_role: vagrant
+ai_node_venv: /home/vagrant/venvs/dba
+ai_node_python_packages:
+  - psycopg[binary]>=3.2
+  - requests>=2.31

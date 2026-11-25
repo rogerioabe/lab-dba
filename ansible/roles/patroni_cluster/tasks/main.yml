@@ -4,6 +4,7 @@
     name:
       - "postgresql{{ pg_version }}-server"
       - "postgresql{{ pg_version }}-contrib"
+      - "pgvector_{{ pg_version }}"
       - patroni
       - patroni-etcd
     state: present
@@ -33,6 +34,28 @@
     backup: true
   diff: false
   notify: Reload Patroni
+
+- name: Pasta de ajustes do systemd para o Patroni
+  ansible.builtin.file:
+    path: /etc/systemd/system/patroni.service.d
+    state: directory
+    mode: "0755"
+
+- name: Patroni espera o etcd e se religa sozinho
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/patroni.service.d/restart.conf
+    content: |
+      # Managed by Ansible. At boot etcd may not have quorum yet and Patroni exits:
+      # start after the local etcd and keep retrying. A manual "systemctl stop" is not restarted.
+      [Unit]
+      After=etcd.service
+      StartLimitIntervalSec=0
+
+      [Service]
+      Restart=always
+      RestartSec=10
+    mode: "0644"
+  notify: Recarregar systemd
 
 - name: Patroni habilitado e ativo
   ansible.builtin.systemd:

@@ -1,0 +1,29 @@
+---
+- name: Download the Ollama install script
+  ansible.builtin.get_url:
+    url: "{{ ollama_install_url }}"
+    dest: /tmp/ollama-install.sh
+    mode: "0755"
+
+- name: Install Ollama (only if the binary is missing)
+  ansible.builtin.command: sh /tmp/ollama-install.sh
+  args:
+    creates: /usr/local/bin/ollama
+
+- name: Ollama service started and enabled
+  ansible.builtin.systemd:
+    name: ollama
+    state: started
+    enabled: true
+
+- name: List the models already downloaded
+  ansible.builtin.command: /usr/local/bin/ollama list
+  register: ollama_list
+  changed_when: false
+  check_mode: false   # read-only: also runs in --check, so the next task can decide
+
+- name: Pull the models that are missing
+  ansible.builtin.command: "/usr/local/bin/ollama pull {{ item }}"
+  loop: "{{ ollama_models }}"
+  when: item not in ollama_list.stdout
+  changed_when: true

@@ -16,6 +16,11 @@ pg_databases:
   - name: appdb
     owner: app_user
 
+# Extensions created by db_objects.yml (the package must be on every node).
+pg_extensions:
+  - db: appdb
+    ext: vector
+
 # Privileges for each role, applied by db_objects.yml (one item = one GRANT).
 pg_privileges:
   - db: appdb

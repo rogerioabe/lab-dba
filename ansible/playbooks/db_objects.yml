@@ -35,6 +35,19 @@
         login_password: "{{ postgres_password }}"
       loop: "{{ pg_databases }}"
 
+    - name: Create extensions from pg_extensions
+      community.postgresql.postgresql_ext:
+        name: "{{ item.ext }}"
+        login_db: "{{ item.db }}"
+        state: present
+        login_host: "{{ pg_host }}"
+        login_port: "{{ pg_port }}"
+        login_user: postgres
+        login_password: "{{ postgres_password }}"
+      loop: "{{ pg_extensions }}"
+      loop_control:
+        label: "{{ item.db }}: {{ item.ext }}"
+
     - name: Grant privileges from pg_privileges
       community.postgresql.postgresql_privs:
         login_db: "{{ item.db }}"

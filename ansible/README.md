@@ -11,6 +11,8 @@ managed as code from the `ctl` node.
 > Day-2 playbooks patch the cluster node by node and rotate passwords without a restart.
 > The project passes `ansible-lint` with the `production` profile, and collection versions
 > are pinned. Next: Terraform.
+> The standalone AI VM (PostgreSQL 18 + pgvector + Ollama) is also code: `ai.yml`.
+> pgvector is installed on every cluster node and created by `db_objects.yml`.
 
 ## Project layout
 
@@ -20,18 +22,20 @@ ansible/
 ├── .ansible-lint                 # lint rules: excluded folders and skipped rules (with the reason)
 ├── requirements.yml              # collections the project needs, with pinned versions
 ├── inventory/
-│   ├── hosts.yml                 # where: postgres (db1-db3), etcd (children: postgres), haproxy (ctl, local connection)
+│   ├── hosts.yml                 # where: postgres (db1-db3), etcd (children: postgres), ai_nodes (ai), haproxy (ctl, local connection)
 │   └── group_vars/
 │       ├── all.yml               # base packages and cluster ports
 │       ├── etcd.yml              # etcd cluster token for the lab
+│       ├── ai_nodes.yml          # AI VM: databases, extensions, Ollama models
 │       └── postgres/
-│           ├── vars.yml          # plain values: pg_users / pg_databases / pg_privileges lists, aliases to secrets
+│           ├── vars.yml          # plain values: pg_users / pg_databases / pg_extensions / pg_privileges lists, aliases to secrets
 │           └── vault.yml         # secrets only, encrypted with Ansible Vault
 ├── playbooks/
 │   ├── site.yml                  # entry point: common -> etcd -> etcd check, then imports cluster.yml and validate.yml
 │   ├── cluster.yml               # Patroni one node at a time (serial: 1) -> HAProxy + psql client on ctl
 │   ├── validate.yml              # 1 leader + 2 streaming replicas, HAProxy routing (ports 5000/5001)
-│   ├── db_objects.yml            # databases, users and privileges as code
+│   ├── db_objects.yml            # databases, users, extensions and privileges as code
+│   ├── ai.yml                    # AI VM: PostgreSQL 18 + pgvector + Ollama + Python venv
 │   ├── rolling_patch.yml         # day-2: patch replicas one by one, switchover, patch the old leader
 │   ├── rotate_passwords.yml      # day-2: ALTER ROLE on the leader, then patroni.yml + Patroni reload
 │   └── tasks/
@@ -39,10 +43,12 @@ ansible/
 ├── roles/
 │   ├── pgdg_repo/                # PGDG repository: package, pin to EL9, GPG keys, Rocky module off
 │   ├── common/                   # OS baseline: EPEL, packages, firewalld (depends on pgdg_repo)
-│   ├── etcd/                     # install, per-node etcd.conf, controlled restart
-│   ├── patroni_cluster/          # PostgreSQL 18 + Patroni, patroni.yml per node (pg_hba incl. local replication)
+│   ├── etcd/                     # install, per-node etcd.conf, controlled restart, restart on failure (systemd drop-in)
+│   ├── patroni_cluster/          # PostgreSQL 18 + pgvector + Patroni, patroni.yml per node, waits for etcd and restarts on failure
 │   ├── haproxy/                  # HAProxy on ctl: 5000 -> primary, 5001 -> replicas
-│   └── pg_client/                # psql client, on the db nodes and on ctl (depends on pgdg_repo)
+│   ├── pg_client/                # psql client, on the db nodes and on ctl (depends on pgdg_repo)
+│   ├── ai_node/                  # PostgreSQL 18, pgvector, initdb, superuser, AI databases, venv (depends on pgdg_repo)
+│   └── ollama/                   # Ollama install, service, models (pull only if missing)
 ├── notes/                        # lesson notes and questions (lab-notes.md, PERGUNTAS.md, ...)
 └── legacy/                       # week 1 files (inventario.ini, pg-binarios.yml)
 ```
@@ -268,4 +274,31 @@ ansible-playbook playbooks/rotate_passwords.yml
 ```
 
 After rotating, update `~/.pgpass` on `ctl`.
+
+## AI node (lesson block after 39)
+
+The `ai` VM (192.168.56.20) is managed from `ctl` like the cluster, so the vault
+password stays on one machine.
+
+```bash
+ansible-playbook playbooks/ai.yml --check --diff   # dry run
+ansible-playbook playbooks/ai.yml                  # converge
+ansible-playbook playbooks/ai.yml                  # second run: changed=0
+```
+
+| Task | Idempotent because |
+|---|---|
+| `initdb` | `creates: PG_VERSION`: skipped when the cluster exists |
+| role, databases, extension | `community.postgresql` modules with `state: present` |
+| Ollama install | `creates: /usr/local/bin/ollama` |
+| model pull | runs only for models missing from `ollama list` |
+
+Notes:
+- `acl` lets Ansible `become_user: postgres`; `python3-psycopg2` is the driver of the
+  `community.postgresql` modules.
+- Under `sudo`, `PATH` comes from `secure_path`, which has no `/usr/local/bin`: the
+  Ollama tasks use the full path.
+- pgvector on the cluster: the package is installed on every node (replicas run
+  vector queries and any of them can become primary); the extension is created once,
+  on the primary, and replicated through WAL.
 EOF

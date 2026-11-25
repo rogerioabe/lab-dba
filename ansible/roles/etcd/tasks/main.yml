@@ -14,6 +14,27 @@
     mode: "0644"
   notify: Reiniciar etcd
 
+- name: Pasta de ajustes do systemd para o etcd
+  ansible.builtin.file:
+    path: /etc/systemd/system/etcd.service.d
+    state: directory
+    mode: "0755"
+
+- name: Religar o etcd se a subida falhar (ex. sem quorum no boot)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/etcd.service.d/restart.conf
+    content: |
+      # Managed by Ansible. At boot the first node has no quorum and etcd times out:
+      # keep retrying until the other members are up.
+      [Unit]
+      StartLimitIntervalSec=0
+
+      [Service]
+      Restart=on-failure
+      RestartSec=10
+    mode: "0644"
+  notify: Recarregar systemd
+
 - name: Serviço etcd habilitado e ativo
   ansible.builtin.systemd:
     name: etcd

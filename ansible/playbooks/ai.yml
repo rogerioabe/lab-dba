@@ -1,0 +1,6 @@
+---
+- name: AI node (PostgreSQL 18 + pgvector + Ollama)
+  hosts: ai_nodes
+  roles:
+    - ai_node
+    - ollama

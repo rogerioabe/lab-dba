@@ -1,0 +1,58 @@
+---
+- name: Install PostgreSQL, pgvector and the tools Ansible needs
+  ansible.builtin.dnf:
+    name:
+      - "postgresql{{ pg_version }}-server"
+      - "postgresql{{ pg_version }}-contrib"
+      - "pgvector_{{ pg_version }}"
+      - python3-psycopg2   # used by the community.postgresql modules
+      - acl                # lets Ansible "become" the postgres user
+      - python3.11
+      - python3.11-pip
+    state: present
+
+- name: Initialize the data directory (only if it is empty)
+  ansible.builtin.command: "{{ pg_bin_dir }}/postgresql-{{ pg_version }}-setup initdb"
+  args:
+    creates: "{{ pg_data_dir }}/PG_VERSION"
+
+- name: PostgreSQL started and enabled
+  ansible.builtin.systemd:
+    name: "postgresql-{{ pg_version }}"
+    state: started
+    enabled: true
+
+- name: Superuser role for the OS user (peer authentication)
+  community.postgresql.postgresql_user:
+    name: "{{ ai_node_admin_role }}"
+    role_attr_flags: SUPERUSER
+  become: true
+  become_user: postgres
+
+- name: Databases of the AI labs
+  community.postgresql.postgresql_db:
+    name: "{{ item }}"
+    owner: "{{ ai_node_admin_role }}"
+    state: present
+  loop: "{{ ai_databases }}"
+  become: true
+  become_user: postgres
+
+- name: Extensions (pgvector)
+  community.postgresql.postgresql_ext:
+    name: "{{ item.ext }}"
+    login_db: "{{ item.db }}"
+    state: present
+  loop: "{{ ai_extensions }}"
+  loop_control:
+    label: "{{ item.db }}: {{ item.ext }}"
+  become: true
+  become_user: postgres
+
+- name: Python virtualenv for the AI labs
+  ansible.builtin.pip:
+    name: "{{ ai_node_python_packages }}"
+    virtualenv: "{{ ai_node_venv }}"
+    virtualenv_command: python3.11 -m venv
+  become: true
+  become_user: "{{ ai_node_admin_role }}"

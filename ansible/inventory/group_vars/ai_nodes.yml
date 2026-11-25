@@ -1,0 +1,11 @@
+# Variables for the standalone AI VM (PostgreSQL 18 + pgvector + Ollama)
+ai_databases:
+  - aidb
+  - perfdb
+
+ai_extensions:
+  - db: aidb
+    ext: vector
+
+ollama_models:
+  - nomic-embed-text
