@@ -275,7 +275,7 @@ ansible-playbook playbooks/rotate_passwords.yml
 
 After rotating, update `~/.pgpass` on `ctl`.
 
-## AI node (lesson block after 39)
+## AI node
 
 The `ai` VM (192.168.56.20) is managed from `ctl` like the cluster, so the vault
 password stays on one machine.
