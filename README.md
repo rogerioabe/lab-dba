@@ -85,7 +85,7 @@ flowchart LR
 | [`ai/01-embeddings`](ai/01-embeddings/) | Embeddings with a local model (Ollama) and semantic search in plain SQL |
 | [`ai/02-pgvector`](ai/02-pgvector/) | pgvector: vector types, distance operators, migration from float8[], exact search |
 | [`ai/03-vector-indexes`](ai/03-vector-indexes/) | HNSW vs IVFFlat on 100k vectors: recall, latency, filters, halfvec |
-| [ai/04-embedding-pipeline](ai/04-embedding-pipeline) | trigger + queue + worker (SKIP LOCKED) keeping embeddings in sync |
+| [`ai/04-embedding-pipeline`](ai/04-embedding-pipeline)| trigger + queue + worker (SKIP LOCKED) keeping embeddings in sync |
 | [`ansible/`](ansible/) | The whole cluster as code: see its [README](ansible/README.md) |
 | [`ansible/roles/`](ansible/roles/) | `pgdg_repo`, `common`, `etcd`, `patroni_cluster`, `haproxy`, `pg_client` |
 | [`ansible/playbooks/`](ansible/playbooks/) | `site.yml` (build and validate), `db_objects.yml` (databases, users, privileges), `rolling_patch.yml` (rolling patch with switchover), `rotate_passwords.yml` (password rotation, Patroni reload only) |
